@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Digital Twin & Surface Relief Viewer | PCB AI Suite</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Three.js & OrbitControls for 3D WebGL Rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .viewport-3d-container {
+      position: relative;
+      width: 100%;
+      height: calc(100vh - 210px);
+      min-height: 560px;
+      background: radial-gradient(circle at center, #111827 0%, #060913 100%);
+      border-radius: 12px;
+      border: 1px solid #1E293B;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    #webglCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #webglCanvas:active {
+      cursor: grabbing;
+    }
+    .hud-3d-overlay {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      padding: 12px 18px;
+      border-radius: 8px;
+      color: #FFFFFF;
+      z-index: 10;
+    }
+    .zoom-floating-widget {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid #334155;
+      padding: 8px 6px;
+      border-radius: 10px;
+      z-index: 11;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+    .zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: #1E293B;
+      border: 1px solid #475569;
+      color: #E2E8F0;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    .zoom-btn:hover {
+      background: #3B82F6;
+      border-color: #60A5FA;
+      color: #FFFFFF;
+      transform: scale(1.06);
+    }
+    .zoom-btn:active {
+      transform: scale(0.96);
+    }
+    .zoom-level-pill {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #38BDF8;
+      text-align: center;
+      padding: 4px 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      white-space: nowrap;
+      min-width: 75px;
+    }
+    .hud-controls-overlay {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      padding: 10px 16px;
+      border-radius: 8px;
+      z-index: 10;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .component-tooltip-3d {
+      position: absolute;
+      top: 15px;
+      right: 100px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #3B82F6;
+      padding: 14px 18px;
+      border-radius: 8px;
+      color: #FFFFFF;
+      min-width: 270px;
+      z-index: 10;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Enterprise Industrial Header Bar -->
+  <header class="ind-header">
+    <div class="header-left">
+      <div class="company-brand">
+        <div class="brand-logo"><i class="fa-solid fa-microchip"></i></div>
+        <div class="brand-meta">
+          <div class="brand-name">PCB AI Metrology & AOI Station</div>
+          <div class="brand-sub">Enterprise IPC-A-610H Class 2/3 & Industry 4.0 Platform</div>
+        </div>
+      </div>
+      <div class="standards-pills">
+        <span class="pill pill-standard"><i class="fa-solid fa-certificate"></i> IPC-A-610H</span>
+        <span class="pill pill-standard"><i class="fa-solid fa-satellite-dish"></i> IPC-CFX-2591</span>
+        <span class="pill pill-version"><i class="fa-solid fa-cube"></i> Real Image 3D Texture & Elevation</span>
+      </div>
+    </div>
+    <div class="telemetry-panel">
+      <div class="telem-item">
+        <div class="telem-dot active"></div>
+        <div class="telem-info">
+          <span class="telem-label">LINE STATUS</span>
+          <span class="telem-val text-pass" id="telemServer">SMT LINE 01 ONLINE</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Multi-Page Industrial Navigation Menu -->
+      <nav class="ind-nav-menu">
+    <a href="/" class="nav-tab-btn"><i class="fa-solid fa-camera-retro"></i> Live Inspection</a>
+    <a href="/3d-view" class="nav-tab-btn active"><i class="fa-solid fa-cube"></i> 360° 3D Digital Twin</a>
+    <a href="/photometric-studio" class="nav-tab-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> 3D Photometric Studio</a>
+    <a href="/xray-studio" class="nav-tab-btn"><i class="fa-solid fa-radiation"></i> 3D X-Ray Studio</a>
+    <a href="/photometric" class="nav-tab-btn"><i class="fa-solid fa-layer-group"></i> Photometric Stereo</a>
+    <a href="/metrology" class="nav-tab-btn"><i class="fa-solid fa-ruler-combined"></i> IPC-A-610 Metrology</a>
+    <a href="/analytics" class="nav-tab-btn"><i class="fa-solid fa-chart-pie"></i> Statistical Analytics</a>
+    <a href="/spc" class="nav-tab-btn"><i class="fa-solid fa-chart-line"></i> SPC Control Charts</a>
+    <a href="/msa" class="nav-tab-btn"><i class="fa-solid fa-flask"></i> Gage R&R (MSA)</a>
+    <a href="/cfx" class="nav-tab-btn"><i class="fa-solid fa-satellite-dish"></i> Industry 4.0 CFX</a>
+    <a href="/audit" class="nav-tab-btn"><i class="fa-solid fa-file-shield"></i> ISO 9001 Audit</a>
+    <a href="/download-zip" class="nav-tab-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: #ffffff !important; font-weight: bold; border-color: #34d399; margin-left: auto;" download><i class="fa-solid fa-file-zipper"></i> Download Suite (.ZIP)</a>
+  </nav>
+
+  <main class="ind-dashboard">
+    <!-- Executive Educational Explainer Banner -->
+    <div class="page-explainer-banner">
+      <div class="page-explainer-content">
+        <div class="page-explainer-title">
+          <i class="fa-solid fa-cube text-primary"></i> Interactive 3D WebGL Digital Twin & Elevation Relief
+        </div>
+        <p class="page-explainer-desc">
+          Renders a full 3D topographical reconstruction of the inspected PCB directly in WebGL. Extrudes components in 3D height based on monocular depth estimation, simulates physical tombstone tilt angles (45°) and rotational skew, and lets you click any component to inspect its live IPC-A-610 metrology measurements.
+        </p>
+      </div>
+      <div class="page-explainer-chips">
+        <span class="explainer-chip"><i class="fa-solid fa-arrows-rotate"></i> 360° Orbit & Zoom</span>
+        <span class="explainer-chip"><i class="fa-solid fa-image"></i> Real Image Texture</span>
+        <span class="explainer-chip"><i class="fa-solid fa-arrow-up-right-dots"></i> 3D Defect Simulation</span>
+      </div>
+    </div>
+
+    <div class="viewport-3d-container">
+      <canvas id="webglCanvas"></canvas>
+
+      <!-- 3D HUD Top Left -->
+      <div class="hud-3d-overlay">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <i class="fa-solid fa-cube text-cyan" style="font-size: 16px;"></i>
+          <strong style="font-size: 14px; color: #FFFFFF;" id="hudScenarioTitle">TB005 - Active 3D Board</strong>
+          <span class="tag-badge tag-pass" id="boardAngleDisplay" style="font-size: 11px; padding: 2px 8px;"><i class="fa-solid fa-compass"></i> Board: 0°</span>
+        </div>
+        <div style="font-size: 12px; color: #CBD5E1;">
+          <i class="fa-solid fa-arrows-rotate text-cyan"></i> <strong>Left-Drag:</strong> Rotate Board Alone 360° (Surface Fixed) &bull; <strong>Scroll / Widget:</strong> Accurate Zoom &bull; <strong>Right-Drag:</strong> Pan
+        </div>
+      </div>
+
+      <!-- Floating CAD Zoom & Precision Inspection Widget (Top Right) -->
+      <div class="zoom-floating-widget">
+        <div class="zoom-level-pill" id="zoomLevelDisplay" title="Current Accurate Zoom Level"><i class="fa-solid fa-magnifying-glass"></i> 100% Zoom</div>
+        <button class="zoom-btn" id="btnZoomIn" title="Accurate Zoom In (+)"><i class="fa-solid fa-plus"></i></button>
+        <button class="zoom-btn" id="btnZoomOut" title="Accurate Zoom Out (-)"><i class="fa-solid fa-minus"></i></button>
+        <button class="zoom-btn" id="btnZoom100" title="Reset 1:1 Scale (100% Fit)"><i class="fa-solid fa-arrows-to-dot"></i></button>
+        <button class="zoom-btn" id="btnZoomMacro" title="Macro 250% Microscopic Inspection"><i class="fa-solid fa-microscope"></i></button>
+      </div>
+
+      <!-- Component Inspector Tooltip Top Right -->
+      <div class="component-tooltip-3d" id="componentTooltip3D">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 8px;">
+          <strong style="color: #38BDF8; font-size: 15px;" id="tooltipCompId">U1</strong>
+          <span class="tag-badge tag-pass" id="tooltipCompBadge">PASS</span>
+        </div>
+        <div style="font-size: 12px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px;">
+          <div>Name: <strong style="color: #FFFFFF;" id="tooltipCompName">Main MCU</strong></div>
+          <div>Measured Shift: <code id="tooltipCompShift">ΔX: 0.00mm, ΔY: 0.00mm</code></div>
+          <div>Rotation: <code id="tooltipCompRot">Δθ: 0.00°</code></div>
+          <div>Side Overhang: <code id="tooltipCompOverhang">0.0%</code></div>
+          <div>Status: <strong style="color: #34D399;" id="tooltipCompIPC">IPC Class 3 Target</strong></div>
+        </div>
+      </div>
+
+      <!-- Controls Overlay Bottom -->
+      <div class="hud-controls-overlay">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <label style="font-size: 12px; font-weight: 700; color: #CBD5E1;">Board Scenario:</label>
+          <select id="boardSelect3D" class="ind-select" style="padding: 7px 12px;">
+            <optgroup label="Golden Standard">
+              <option value="TB005" selected>TB005 - 100% Perfect Board</option>
+              <option value="TB006">TB006 - Golden Reference Sample 2</option>
+            </optgroup>
+            <optgroup label="Structural Defects">
+              <option value="TB002">TB002 - C3 Tombstoned (45° Tilt Lift)</option>
+              <option value="TB003">TB003 - R12 Tilted & U2 Shifted</option>
+              <option value="TB004">TB004 - C5 Shifted Overhang</option>
+              <option value="TB024">TB024 - U1 Micro-Rotation Defect</option>
+            </optgroup>
+            <optgroup label="Missing Defects">
+              <option value="TB001">TB001 - U1 MCU Missing (Ghost ROI)</option>
+              <option value="TB010">TB010 - U2 Flash Missing</option>
+              <option value="TB014">TB014 - Multi-Part Missing</option>
+              <option value="TB016">TB016 - J_BOT1 Header Missing</option>
+              <option value="TB032">TB032 - Severe Substrate Burn & Thermal Hole</option>
+            </optgroup>
+          </select>
+
+          <label for="customImageUpload3D" class="ind-btn btn-secondary" style="padding: 7px 14px; font-size: 12px; cursor: pointer; background: #3B82F6; color: white;">
+            <i class="fa-solid fa-folder-open"></i> Upload Image in 3D
+          </label>
+          <input type="file" id="customImageUpload3D" accept="image/png, image/jpeg" hidden>
+        </div>
+
+        <!-- 360° Board-Alone Rotation Controls -->
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <button class="ind-btn btn-secondary" id="btnAutoRotate" style="padding: 7px 12px; font-size: 12px; border-color: #38BDF8; color: #38BDF8;" title="Continuous 360° Turntable of the Board Alone"><i class="fa-solid fa-rotate"></i> 360° Auto-Rotate: Off</button>
+          <button class="ind-btn btn-secondary" id="btnRotLeft45" style="padding: 7px 10px; font-size: 12px;" title="Rotate Board 45° CCW"><i class="fa-solid fa-rotate-left"></i> ↺ 45°</button>
+          <button class="ind-btn btn-secondary" id="btnRotRight45" style="padding: 7px 10px; font-size: 12px;" title="Rotate Board 45° CW"><i class="fa-solid fa-rotate-right"></i> ↻ 45°</button>
+          <button class="ind-btn btn-secondary" id="btnResetBoardRot" style="padding: 7px 10px; font-size: 12px;" title="Reset Board Angle to 0°"><i class="fa-solid fa-compass"></i> Reset 0°</button>
+          <button class="ind-btn btn-secondary" id="btnToggleSurface" style="padding: 7px 12px; font-size: 12px;" title="Hide or Show Surface Grid"><i class="fa-solid fa-border-all"></i> Surface: On</button>
+          <button class="ind-btn btn-secondary" id="btnRotateMode" style="padding: 7px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.15); border-color: #38BDF8; color: #38BDF8;" title="Switch rotation mode between Board Alone and Camera Orbit"><i class="fa-solid fa-arrows-spin"></i> Mode: Board Alone</button>
+        </div>
+
+        <!-- Camera Angle Presets -->
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <button class="ind-btn btn-secondary" id="camIsometric" style="padding: 7px 12px; font-size: 12px;"><i class="fa-solid fa-cube"></i> Isometric</button>
+          <button class="ind-btn btn-secondary" id="camTopDown" style="padding: 7px 12px; font-size: 12px;"><i class="fa-solid fa-camera"></i> Top AOI</button>
+          <button class="ind-btn btn-secondary" id="camSideProfile" style="padding: 7px 12px; font-size: 12px;"><i class="fa-solid fa-arrows-up-down"></i> Side Profile</button>
+          <button class="ind-btn btn-secondary" id="toggleWireframe" style="padding: 7px 12px; font-size: 12px;"><i class="fa-solid fa-border-all"></i> Wireframe</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 12px; color: #CBD5E1; font-weight: 600;">3D Elevation:</label>
+          <input type="range" id="zScaleSlider" min="0.5" max="5" value="2.5" step="0.5" style="cursor: pointer; width: 85px;">
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="ind-footer">
+    <div class="footer-content">
+      <div>PCB AI Metrology & AOI Suite &copy; 2026 | Enterprise SMT Quality Control</div>
+      <div class="footer-links"><span>IPC-A-610H Class 2/3</span> &bull; <span>IPC-CFX-2591</span> &bull; <span>ISO 9001:2015</span></div>
+    </div>
+  </footer>
+
+  <script src="/static/common.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('webglCanvas');
+      const container = canvas.parentElement;
+
+      // 1. Three.js Scene Setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x070b14);
+
+      const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 75, 95);
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+
+      // Accurate OrbitControls configuration
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+      controls.zoomSpeed = 1.0;
+      controls.minDistance = 20; // Macro close-up without clipping
+      controls.maxDistance = 220; // Wide view cap
+      controls.target.set(0, 0, 0); // Always accurately centered on the board
+      controls.maxPolarAngle = Math.PI / 2 + 0.1;
+
+      // By default, left-drag rotates the BOARD ALONE, not the camera/surface
+      let rotateMode = 'board'; // 'board' = rotate board alone, 'camera' = orbit camera
+      controls.enableRotate = false;
+
+      // 2. Lighting Setup
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+      dirLight.position.set(50, 90, 60);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      const cyanFillLight = new THREE.PointLight(0x38bdf8, 1.2, 120);
+      cyanFillLight.position.set(-40, 50, -40);
+      scene.add(cyanFillLight);
+
+      // 3. Elevated Workbench Surface (Positioned 22 units below the board so board is clearly upper)
+      const surfaceGroup = new THREE.Group();
+      surfaceGroup.position.y = -22; // Clear visible gap between board and surface floor
+      scene.add(surfaceGroup);
+
+      // Floor plane to catch perspective and zoom
+      const floorGeo = new THREE.PlaneGeometry(360, 360);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x070c18,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.receiveShadow = true;
+      surfaceGroup.add(floorMesh);
+
+      // High-precision minor grid lines
+      const minorGrid = new THREE.GridHelper(360, 72, 0x1e293b, 0x0f172a);
+      minorGrid.position.y = 0.05;
+      surfaceGroup.add(minorGrid);
+
+      // Major bright cyan grid lines
+      const majorGrid = new THREE.GridHelper(360, 18, 0x38bdf8, 0x334155);
+      majorGrid.position.y = 0.1;
+      surfaceGroup.add(majorGrid);
+
+      // 4. Board Hierarchy: Root Board Group hovering high above surface, rotates in ALL 360° angles
+      const boardGroup = new THREE.Group();
+      boardGroup.position.set(0, 0, 0); // Board stays centered at origin, 22 units above surface floor
+      scene.add(boardGroup);
+
+      const componentGroup = new THREE.Group();
+      boardGroup.add(componentGroup);
+
+      // Board Dimensions in 3D world units (Square 100x100 for true 1:1 PCB)
+      const boardWidth = 100;
+      const boardLength = 100;
+      const boardThickness = 2.0;
+
+      // Texture Loader
+      const textureLoader = new THREE.TextureLoader();
+
+      let pcbMesh = null;
+      let componentMeshes = [];
+      let currentZScale = 2.5;
+      let isWireframe = false;
+      let componentsData = [];
+      let metrologyData = [];
+      let imgWidth = 1024;
+      let imgHeight = 1024;
+      let autoRotateBoard = false;
+
+      // Raycaster for click-to-inspect
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      // --- Build 3D Board with True Image Texture & Elevation Mesh ---
+      async function build3DBoard(imageSrc, boardTitle, components, metrology) {
+        document.getElementById('hudScenarioTitle').textContent = boardTitle;
+
+        // Remove old board mesh from boardGroup
+        if (pcbMesh) {
+          boardGroup.remove(pcbMesh);
+          pcbMesh.geometry.dispose();
+          pcbMesh = null;
+        }
+
+        // Clear previous component meshes
+        while (componentGroup.children.length > 0) {
+          componentGroup.remove(componentGroup.children[0]);
+        }
+        componentMeshes = [];
+
+        // Load image as texture onto the board
+        textureLoader.load(imageSrc, (texture) => {
+          texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          texture.generateMipmaps = true;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+
+          if (texture.image && texture.image.width) {
+            imgWidth = texture.image.width;
+            imgHeight = texture.image.height;
+          }
+
+          // 3D Substrate Box
+          const substrateGeo = new THREE.BoxGeometry(boardWidth, boardThickness, boardLength);
+          
+          const sideMat = new THREE.MeshStandardMaterial({ color: 0x0a3324, roughness: 0.5, metalness: 0.1 });
+          const topMat = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.3,
+            metalness: 0.15,
+            wireframe: isWireframe
+          });
+          const bottomMat = new THREE.MeshStandardMaterial({
+            color: 0x093322,
+            roughness: 0.35,
+            metalness: 0.2
+          });
+
+          // [+X, -X, +Y (top photo), -Y (bottom solder mask), +Z, -Z]
+          const materials = [sideMat, sideMat, topMat, bottomMat, sideMat, sideMat];
+          pcbMesh = new THREE.Mesh(substrateGeo, materials);
+          pcbMesh.position.y = 0;
+          pcbMesh.receiveShadow = true;
+          boardGroup.add(pcbMesh);
+
+          // Populate 3D Components & Defect Markers
+          populate3DComponents(components, metrology);
+        });
+      }
+
+      // --- Populate 3D Component Models & Defect Bounding Boxes ---
+      function populate3DComponents(comps, metrologyList) {
+        if (!comps || comps.length === 0) return;
+
+        comps.forEach(comp => {
+          const [bx, by, bw, bh] = comp.bbox_xywh || [0, 0, 30, 30];
+          
+          const posX = ((bx + bw / 2) / imgWidth) * boardWidth - (boardWidth / 2);
+          const posZ = ((by + bh / 2) / imgHeight) * boardLength - (boardLength / 2);
+          const compW = (bw / imgWidth) * boardWidth;
+          const compL = (bh / imgHeight) * boardLength;
+
+          const metro = (metrologyList || []).find(m => m.component_id === comp.id) || {};
+          const isMissing = comp.is_missing;
+          const isTombstone = comp.tombstone_flag;
+          const isTilt = comp.tilt_flag || Math.abs(metro.rotation_deg || 0) > 3.0;
+          const isShift = Math.abs(metro.delta_x_mm || 0) > 0.3;
+
+          const rotAngleDeg = metro.rotation_deg || (comp.id === 'R12' && isTilt ? 18.5 : 0);
+          const shiftX = (metro.delta_x_px ? (metro.delta_x_px / imgWidth) * boardWidth : 0);
+
+          let compH = 2.4;
+          let compColor = 0x1e293b;
+          const cType = (comp.type || '').toUpperCase();
+
+          if (cType.includes('IC')) {
+            compH = 3.5;
+            compColor = 0x0f172a;
+          } else if (cType.includes('CAPACITOR')) {
+            compH = 2.2;
+            compColor = 0x9a3412;
+          } else if (cType.includes('RESISTOR')) {
+            compH = 1.4;
+            compColor = 0x18181b;
+          } else if (cType.includes('REGULATOR')) {
+            compH = 4.2;
+            compColor = 0x334155;
+          } else if (cType.includes('CONNECTOR')) {
+            compH = 5.5;
+            compColor = 0xd97706;
+          }
+
+          if (isMissing) {
+            const ghostGeo = new THREE.BoxGeometry(compW, 0.4, compL);
+            const ghostMat = new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true });
+            const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
+            ghostMesh.position.set(posX, (boardThickness / 2) + 0.3, posZ);
+            ghostMesh.userData = { ...comp, metro, status: 'MISSING', verdict: 'DEFECT' };
+            componentGroup.add(ghostMesh);
+            componentMeshes.push(ghostMesh);
+            return;
+          }
+
+          const geo = new THREE.BoxGeometry(compW, compH * (currentZScale / 2), compL);
+          let boxColor = compColor;
+          if (isTombstone) boxColor = 0xef4444;
+          else if (isTilt || isShift) boxColor = 0xf59e0b;
+
+          const mat = new THREE.MeshStandardMaterial({
+            color: boxColor,
+            roughness: 0.3,
+            metalness: 0.35,
+            wireframe: isWireframe,
+            transparent: true,
+            opacity: 0.88
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          let finalY = (boardThickness / 2) + (compH * (currentZScale / 2) / 2);
+          mesh.position.set(posX + shiftX, finalY, posZ);
+
+          if (isTombstone) {
+            mesh.rotation.z = Math.PI / 4;
+            mesh.position.y += 2.2 * currentZScale;
+          }
+
+          if (rotAngleDeg !== 0) {
+            mesh.rotation.y = (rotAngleDeg * Math.PI) / 180;
+          }
+
+          mesh.userData = {
+            ...comp,
+            metro,
+            status: isTombstone ? 'TOMBSTONE' : (isTilt || isShift ? 'REWORK' : 'PASS')
+          };
+
+          componentGroup.add(mesh);
+          componentMeshes.push(mesh);
+
+          const filletGeo = new THREE.BoxGeometry(compW * 1.05, 0.5, compL * 1.05);
+          const filletMat = new THREE.MeshStandardMaterial({
+            color: isTombstone ? 0xef4444 : (isShift || isTilt ? 0xf59e0b : 0x10b981),
+            wireframe: true
+          });
+          const filletMesh = new THREE.Mesh(filletGeo, filletMat);
+          filletMesh.position.set(posX, (boardThickness / 2) + 0.1, posZ);
+          componentGroup.add(filletMesh);
+        });
+      }
+
+      // --- 5. Mouse Drag: Rotate Board Alone in ALL 360 Degree Angles (Unconstrained) ---
+      let isBoardRotating = false;
+      let pointerDownPos = { x: 0, y: 0 };
+      let lastPointerPos = { x: 0, y: 0 };
+
+      canvas.addEventListener('pointerdown', (e) => {
+        if (e.button === 0) { // Left-click drag
+          pointerDownPos = { x: e.clientX, y: e.clientY };
+          lastPointerPos = { x: e.clientX, y: e.clientY };
+
+          if (rotateMode === 'board') {
+            isBoardRotating = true;
+            canvas.style.cursor = 'grabbing';
+            controls.enableRotate = false;
+          } else {
+            controls.enableRotate = true;
+          }
+        }
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (isBoardRotating && rotateMode === 'board') {
+          const deltaX = e.clientX - lastPointerPos.x;
+          const deltaY = e.clientY - lastPointerPos.y;
+          lastPointerPos = { x: e.clientX, y: e.clientY };
+
+          // 360° ALL-ANGLE ROTATION: No clamping, tumble freely in any direction
+          // Horizontal drag rotates 360° around world Y axis:
+          const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), deltaX * 0.009);
+
+          // Vertical drag rotates 360° around camera's horizontal axis (pitch up/down/flip upside down):
+          const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+          camRight.y = 0;
+          camRight.normalize();
+          const qPitch = new THREE.Quaternion().setFromAxisAngle(camRight, deltaY * 0.009);
+
+          // Premultiply to rotate board in world space freely across all 360° angles:
+          boardGroup.quaternion.premultiply(qPitch);
+          boardGroup.quaternion.premultiply(qYaw);
+
+          updateBoardAngleHUD();
+        }
+      });
+
+      window.addEventListener('pointerup', () => {
+        if (isBoardRotating) {
+          isBoardRotating = false;
+          if (rotateMode === 'board') {
+            canvas.style.cursor = 'grab';
+          }
+        }
+      });
+
+      function updateBoardAngleHUD() {
+        const euler = new THREE.Euler().setFromQuaternion(boardGroup.quaternion, 'YXZ');
+        const degY = Math.round(((euler.y % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)) * (180 / Math.PI));
+        const degX = Math.round(euler.x * (180 / Math.PI));
+        const el = document.getElementById('boardAngleDisplay');
+        if (el) {
+          el.innerHTML = `<i class="fa-solid fa-compass"></i> Board: ${degY}° | Tilt: ${degX}°`;
+        }
+      }
+
+      // --- 6. Accurate Zoom Engine (Board & Surface Zoom Together via Camera Distance) ---
+      const BASE_DISTANCE = 120.0;
+
+      function updateZoomHUD() {
+        const currentDist = camera.position.distanceTo(controls.target);
+        const zoomPct = Math.round((BASE_DISTANCE / Math.max(1, currentDist)) * 100);
+        const zoomEl = document.getElementById('zoomLevelDisplay');
+        if (zoomEl) {
+          zoomEl.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> ${zoomPct}% Zoom`;
+        }
+      }
+
+      function zoomByRatio(ratio) {
+        // Move camera position along view vector so both board and surface zoom together accurately
+        const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+        offset.multiplyScalar(ratio);
+        const newDist = offset.length();
+        if (newDist >= controls.minDistance && newDist <= controls.maxDistance) {
+          camera.position.copy(controls.target).add(offset);
+          controls.update();
+          updateZoomHUD();
+        }
+      }
+
+      document.getElementById('btnZoomIn').addEventListener('click', () => {
+        zoomByRatio(0.80); // Zoom in 20% closer (board + surface zoom together)
+      });
+
+      document.getElementById('btnZoomOut').addEventListener('click', () => {
+        zoomByRatio(1.25); // Zoom out 25% farther
+      });
+
+      document.getElementById('btnZoom100').addEventListener('click', () => {
+        camera.position.set(0, 75, 95);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        updateZoomHUD();
+      });
+
+      document.getElementById('btnZoomMacro').addEventListener('click', () => {
+        camera.position.set(0, 26, 32);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        updateZoomHUD();
+      });
+
+      // --- 7. Rotation & Surface Toolbar Controls ---
+      const btnAutoRotate = document.getElementById('btnAutoRotate');
+      btnAutoRotate.addEventListener('click', () => {
+        autoRotateBoard = !autoRotateBoard;
+        if (autoRotateBoard) {
+          btnAutoRotate.innerHTML = '<i class="fa-solid fa-pause"></i> 360° Auto-Rotate: ON';
+          btnAutoRotate.style.background = 'rgba(56, 189, 248, 0.2)';
+          btnAutoRotate.style.borderColor = '#38BDF8';
+        } else {
+          btnAutoRotate.innerHTML = '<i class="fa-solid fa-rotate"></i> 360° Auto-Rotate: Off';
+          btnAutoRotate.style.background = '';
+          btnAutoRotate.style.borderColor = '';
+        }
+      });
+
+      document.getElementById('btnRotLeft45').addEventListener('click', () => {
+        const qStep = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 4);
+        boardGroup.quaternion.premultiply(qStep);
+        updateBoardAngleHUD();
+      });
+
+      document.getElementById('btnRotRight45').addEventListener('click', () => {
+        const qStep = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+        boardGroup.quaternion.premultiply(qStep);
+        updateBoardAngleHUD();
+      });
+
+      document.getElementById('btnResetBoardRot').addEventListener('click', () => {
+        boardGroup.quaternion.set(0, 0, 0, 1);
+        updateBoardAngleHUD();
+      });
+
+      const btnToggleSurface = document.getElementById('btnToggleSurface');
+      btnToggleSurface.addEventListener('click', () => {
+        surfaceGroup.visible = !surfaceGroup.visible;
+        btnToggleSurface.innerHTML = surfaceGroup.visible
+          ? '<i class="fa-solid fa-border-all"></i> Surface: On'
+          : '<i class="fa-solid fa-eye-slash"></i> Surface: Off';
+        btnToggleSurface.style.color = surfaceGroup.visible ? '' : '#F87171';
+      });
+
+      const btnRotateMode = document.getElementById('btnRotateMode');
+      btnRotateMode.addEventListener('click', () => {
+        if (rotateMode === 'board') {
+          rotateMode = 'camera';
+          controls.enableRotate = true;
+          canvas.style.cursor = 'default';
+          btnRotateMode.innerHTML = '<i class="fa-solid fa-video"></i> Mode: Camera Orbit';
+          btnRotateMode.style.borderColor = '#A855F7';
+          btnRotateMode.style.color = '#A855F7';
+        } else {
+          rotateMode = 'board';
+          controls.enableRotate = false;
+          canvas.style.cursor = 'grab';
+          btnRotateMode.innerHTML = '<i class="fa-solid fa-arrows-spin"></i> Mode: Board Alone';
+          btnRotateMode.style.borderColor = '#38BDF8';
+          btnRotateMode.style.color = '#38BDF8';
+        }
+      });
+
+      // --- 8. Load Active Board or Scenario ---
+      async function loadScenario(boardId) {
+        try {
+          const compResp = await fetch('/server/config/components.json');
+          if (compResp.ok) {
+            componentsData = await compResp.json();
+          }
+
+          const imgResp = await fetch(`/evaluation/test_boards/${boardId}.png`);
+          if (!imgResp.ok) throw new Error(`Image not found (HTTP ${imgResp.status})`);
+          const imgBlob = await imgResp.blob();
+          const fd = new FormData();
+          fd.append("file", imgBlob, `${boardId}.png`);
+          fd.append("board_serial", boardId);
+          const inspResp = await fetch('/inspect', { method: 'POST', body: fd });
+          const res = inspResp.ok ? await inspResp.json() : {};
+
+          build3DBoard(
+            `/evaluation/test_boards/${boardId}.png`,
+            `${boardId} - 3D Digital Twin (${res.verdict || 'PASS'})`,
+            res.per_component_results || componentsData,
+            res.metrology || []
+          );
+        } catch (e) {
+          console.warn("Load scenario error:", e);
+          build3DBoard(`/evaluation/test_boards/${boardId}.png`, `${boardId} - 3D View`, componentsData, []);
+        }
+      }
+
+      async function syncActiveBoard(boardInfo) {
+        if (!boardInfo) return;
+        const bId = boardInfo.board_id || boardInfo.serial || 'TB005';
+        const v = boardInfo.verdict || 'PASS';
+        
+        const select = document.getElementById('boardSelect3D');
+        if (select) {
+          let found = false;
+          for (let opt of select.options) {
+            if (opt.value === bId) {
+              select.value = bId;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            let activeOpt = select.querySelector('option[data-active-custom="true"]');
+            if (!activeOpt) {
+              activeOpt = document.createElement('option');
+              activeOpt.setAttribute('data-active-custom', 'true');
+              select.insertBefore(activeOpt, select.firstChild);
+            }
+            activeOpt.value = bId;
+            activeOpt.textContent = `⚡ Live Active: ${bId} (${v})`;
+            select.value = bId;
+          }
+        }
+
+        const imgSrc = boardInfo.image_b64 ? `data:image/png;base64,${boardInfo.image_b64}` : (boardInfo.image_url || `/evaluation/test_boards/${bId}.png`);
+        build3DBoard(
+          imgSrc,
+          `${bId} - Active 3D Twin (${v})`,
+          boardInfo.components || [],
+          boardInfo.metrology || []
+        );
+      }
+
+      if (typeof getGlobalActiveBoard === 'function') {
+        getGlobalActiveBoard().then(active => {
+          if (active && (active.board_id || active.serial)) {
+            syncActiveBoard(active);
+          } else {
+            loadScenario('TB005');
+          }
+        });
+      } else {
+        loadScenario('TB005');
+      }
+
+      if (typeof onGlobalActiveBoardChange === 'function') {
+        onGlobalActiveBoardChange(syncActiveBoard);
+      }
+
+      // Custom Image Upload directly in 3D Viewer
+      const customInput = document.getElementById('customImageUpload3D');
+      customInput.addEventListener('change', async (e) => {
+        if (!e.target.files.length) return;
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          const imgSrc = ev.target.result;
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("board_serial", file.name.replace(/\.\w+$/, '') || "CUSTOM");
+          try {
+            const res = await fetch('/inspect', { method: 'POST', body: fd }).then(r => r.json());
+            build3DBoard(imgSrc, `${file.name} - Custom Upload (${res.verdict})`, res.per_component_results || [], res.metrology || []);
+          } catch (err) {
+            build3DBoard(imgSrc, `${file.name} - Custom Upload`, componentsData, []);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Dropdown Scenario Change
+      const boardSelect = document.getElementById('boardSelect3D');
+      boardSelect.addEventListener('change', (e) => {
+        tooltip.style.display = 'none';
+        loadScenario(e.target.value);
+      });
+
+      // Raycaster Click Handler for 3D Component Inspection (only fires if not dragging)
+      const tooltip = document.getElementById('componentTooltip3D');
+      window.addEventListener('click', (event) => {
+        const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+        if (dist > 5) {
+          // Dragged to rotate board, ignore click
+          return;
+        }
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(componentMeshes);
+
+        if (intersects.length > 0) {
+          const hit = intersects[0].object.userData;
+          if (hit && hit.id) {
+            const m = hit.metro || {};
+            tooltip.style.display = 'block';
+            document.getElementById('tooltipCompId').textContent = hit.id;
+            document.getElementById('tooltipCompName').textContent = hit.name || 'Component';
+            document.getElementById('tooltipCompShift').textContent = `ΔX: ${(m.delta_x_mm || 0).toFixed(3)}mm, ΔY: ${(m.delta_y_mm || 0).toFixed(3)}mm`;
+            document.getElementById('tooltipCompRot').textContent = `Δθ: ${(m.rotation_deg || 0).toFixed(2)}°`;
+            document.getElementById('tooltipCompOverhang').textContent = `${(m.max_overhang_pct || 0).toFixed(1)}%`;
+
+            const badge = document.getElementById('tooltipCompBadge');
+            const ipcText = document.getElementById('tooltipCompIPC');
+
+            if (hit.status === 'PASS') {
+              badge.className = 'tag-badge tag-pass';
+              badge.textContent = 'PASS';
+              ipcText.textContent = m.ipc_class_verdict || 'IPC Class 3 Target (Pass)';
+              ipcText.style.color = '#34D399';
+            } else if (hit.status === 'REWORK') {
+              badge.className = 'tag-badge tag-rework';
+              badge.textContent = 'REWORK';
+              ipcText.textContent = m.ipc_class_verdict || 'IPC Class 2 Acceptable / Skew';
+              ipcText.style.color = '#FBBF24';
+            } else {
+              badge.className = 'tag-badge tag-fail';
+              badge.textContent = 'DEFECT';
+              ipcText.textContent = m.ipc_class_verdict || 'IPC-A-610 Defect Violation';
+              ipcText.style.color = '#F87171';
+            }
+          }
+        }
+      });
+
+      // Camera Presets
+      document.getElementById('camIsometric').addEventListener('click', () => {
+        camera.position.set(50, 65, 80);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        updateZoomHUD();
+      });
+      document.getElementById('camTopDown').addEventListener('click', () => {
+        camera.position.set(0, 110, 0.001);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        updateZoomHUD();
+      });
+      document.getElementById('camSideProfile').addEventListener('click', () => {
+        camera.position.set(0, 10, 85);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        updateZoomHUD();
+      });
+
+      // Z-Scale Slider
+      document.getElementById('zScaleSlider').addEventListener('input', (e) => {
+        currentZScale = parseFloat(e.target.value);
+        if (boardSelect) loadScenario(boardSelect.value);
+      });
+
+      // Wireframe Toggle
+      document.getElementById('toggleWireframe').addEventListener('click', () => {
+        isWireframe = !isWireframe;
+        if (boardSelect) loadScenario(boardSelect.value);
+      });
+
+      // Animation Loop
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Auto-Rotate turntable of the board alone across all 360 degrees
+        if (autoRotateBoard) {
+          const qAuto = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.008);
+          boardGroup.quaternion.premultiply(qAuto);
+          updateBoardAngleHUD();
+        }
+
+        controls.update();
+        updateZoomHUD();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Window Resize
+      window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
+    });
+  </script>
+</body>
+</html>

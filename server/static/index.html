@@ -16,40 +16,45 @@
 </head>
 <body>
 
-  <!-- Top Enterprise Industrial Header Bar -->
+  <!-- Top Enterprise Industrial Header Bar (xis.ai Theme) -->
   <header class="ind-header">
     <div class="header-left">
-      <div class="company-brand">
-        <div class="brand-logo" style="background: linear-gradient(135deg, #4F46E5, #06B6D4);">
-          <i class="fa-solid fa-microchip"></i>
-        </div>
+      <div class="xis-brand">
+        xis<span class="brand-dot">.</span>ai
+      </div>
+      <div class="company-brand" style="margin-left: 12px; border-left: 1px solid #334155; padding-left: 14px;">
         <div class="brand-meta">
-          <div class="brand-name">INSPECTRA — Industrial AOI Station</div>
-          <div class="brand-sub">Industry 5.0 Human-Centric Inspection & Digital Twin Platform</div>
+          <div class="brand-name" style="font-size: 13px;">INSPECTRA — Industrial AOI Station</div>
+          <div class="brand-sub">Industry 5.0 Human-Centric Quality & Digital Twin Platform</div>
         </div>
       </div>
 
       <div class="standards-pills">
         <span class="pill pill-standard"><i class="fa-solid fa-certificate"></i> IPC-A-610H Class 2/3</span>
         <span class="pill pill-standard"><i class="fa-solid fa-satellite-dish"></i> IPC-CFX-2591</span>
-        <span class="pill pill-standard"><i class="fa-solid fa-shield-check"></i> ISO 9001:2015</span>
-        <span class="pill pill-version"><i class="fa-solid fa-cube"></i> 3D Leveled Digital Twin</span>
+        <span class="pill pill-version"><i class="fa-solid fa-cube"></i> 3D Digital Twin</span>
       </div>
     </div>
 
-    <!-- Server Connection & Active PCB Telemetry Panel -->
-    <div class="telemetry-panel">
-      <div class="telem-item" style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 14px;">
-        <div class="telem-dot active"></div>
-        <div class="telem-info">
-          <span class="telem-label">LINE STATUS</span>
-          <span class="telem-val text-pass" id="telemServer">SMT LINE 01 ONLINE</span>
-        </div>
+    <!-- Right Header Controls: Dev Switch & Operator Profile -->
+    <div class="xis-header-right">
+      <div class="xis-dev-pill" title="Development Environment Toggle">
+        <span>DEV</span>
+        <div class="xis-toggle-switch"></div>
       </div>
-      <div class="telem-item">
-        <div class="telem-info">
-          <span class="telem-label">ACTIVE PCB CONTEXT</span>
-          <span class="telem-val" style="color: #60A5FA; font-family: var(--font-mono);" id="headerPcbId">NONE (READY)</span>
+
+      <div class="xis-user-profile">
+        <div class="xis-user-avatar"><i class="fa-solid fa-user-gear"></i></div>
+        <span>Development ▾</span>
+      </div>
+
+      <div class="telemetry-panel" style="margin-left: 10px;">
+        <div class="telem-item">
+          <div class="telem-dot active"></div>
+          <div class="telem-info">
+            <span class="telem-label">ACTIVE PCB</span>
+            <span class="telem-val" style="color: #60A5FA; font-family: var(--font-mono);" id="headerPcbId">TB005 (READY)</span>
+          </div>
         </div>
       </div>
     </div>
@@ -91,77 +96,86 @@
       </div>
     </div>
 
-    <!-- 3-COLUMN INDUSTRIAL COMMAND CENTER LAYOUT -->
-    <div class="command-center-layout">
+    <!-- 3-COLUMN INDUSTRIAL COMMAND CENTER LAYOUT (xis.ai WORKSTATION AESTHETIC) -->
+    <div class="command-center-layout xis-workspace-grid">
 
       <!-- ========================================================
-           COLUMN 1 (LEFT): WORKSTATION CONTROLS & TIMELINE
+           COLUMN 1 (LEFT): TRY CARD, GENERAL MENU & WORKSTATION CONTROLS
            ======================================================== -->
       <aside class="cc-sidebar-left">
 
-        <!-- Station Workflow Controls Card -->
-        <div class="cc-card">
-          <div class="cc-card-header">
-            <span class="cc-card-title"><i class="fa-solid fa-sliders text-primary"></i> Station Controls</span>
-            <span class="cc-badge tag-pass">STATION 01</span>
+        <!-- Top "Try" Card with Board Preview and Upload -->
+        <div class="xis-try-card">
+          <div class="xis-try-header">
+            <span>Try</span>
+            <span style="color: #64748b; font-size: 11px;"><i class="fa-solid fa-sparkles text-primary"></i> Optical AOI</span>
           </div>
+          <div class="xis-try-thumb-box" id="tryThumbBox" title="Click to upload board" onclick="document.getElementById('fileUploadInput').click();">
+            <img id="tryCardThumb" src="/static/placeholder.png" alt="Board Thumbnail">
+          </div>
+          <div class="xis-try-footer">
+            <span>Created on April 07</span>
+            <span style="color: #10b981; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Ready</span>
+          </div>
+          <label for="fileUploadInput" class="cc-btn-full ind-btn btn-secondary" style="margin-top: 10px; cursor: pointer; text-align: center; font-weight: 700; display: block; background: rgba(79, 70, 229, 0.2); border-color: #6366f1; color: #a5b4fc;">
+            <i class="fa-solid fa-cloud-arrow-up text-primary"></i> Upload Board
+          </label>
+          <input type="file" id="fileUploadInput" accept="image/png, image/jpeg" hidden>
+        </div>
 
-          <div class="cc-control-group">
-            <label class="cc-control-label" for="boardSelect"><i class="fa-solid fa-microchip"></i> Inspection Scenario</label>
-            <select id="boardSelect" class="ind-select" style="width: 100%;">
-              <option value="" disabled selected>-- Select Scenario or Upload --</option>
-              <optgroup label="✅ Golden Standard (PASS - 100% Target)">
-                <option value="TB005">TB005 - 100% Perfect Master Board (Zero Defects)</option>
-                <option value="TB006">TB006 - Golden Production Board 2 (PASS)</option>
-                <option value="TB007">TB007 - Golden Production Board 3 (PASS)</option>
-                <option value="TB008">TB008 - Golden Production Board 4 (PASS)</option>
-                <option value="TB009">TB009 - Golden Production Board 5 (PASS)</option>
-                <option value="TB001">TB001 - Production Batch Golden Sample (PASS)</option>
-              </optgroup>
-              <optgroup label="⚠️ Component Missing Defects (FAIL / REWORK)">
-                <option value="TB010">TB010 - [DEFECT] Top-Right MCU (U1) Missing</option>
-                <option value="TB011">TB011 - [DEFECT] Center QFN Processor (U5) Missing</option>
-                <option value="TB013">TB013 - [DEFECT] Mid-Upper Controller (U2) Missing</option>
-                <option value="TB015">TB015 - [DEFECT] Top SMT Bus Header (J_TOP) Missing</option>
-                <option value="TB016">TB016 - [DEFECT] Bottom SMT Header (J_BOT1) Missing</option>
-                <option value="TB017">TB017 - [DEFECT] Left SMT Passives Matrix (BANK_L1) Missing</option>
-                <option value="TB018">TB018 - [DEFECT] Bottom-Right MCU (U4) Missing</option>
-              </optgroup>
-              <optgroup label="⚠️ Metrology, Tilt & Multi-Defect Stress (FAIL / REWORK)">
-                <option value="TB003">TB003 - [DEFECT] Mid-Upper Controller (U2) Angular Tilt (18°)</option>
-                <option value="TB014">TB014 - [DEFECT] Multi-Part Missing (U3 + C_R2 Capacitor Bank)</option>
-                <option value="TB020">TB020 - [CRITICAL FAIL] Dual Core Missing (U1 MCU + U5 Processor)</option>
-                <option value="TB022">TB022 - [CRITICAL FAIL] Triple Controller Missing (U2 + U3 + U4)</option>
-                <option value="TB031">TB031 - [CRITICAL FAIL] Multi-MCU Missing (U1 + U4 Missing)</option>
-                <option value="TB032">TB032 - [CRITICAL DEFECT] Severe Substrate Burn & Rupture</option>
-              </optgroup>
-            </select>
+        <!-- General Workflow Navigation Menu -->
+        <div class="cc-card">
+          <div class="xis-menu-section-title"><i class="fa-solid fa-sliders text-primary"></i> General</div>
+          <div class="xis-nav-list">
+            <a href="#viewportSection" class="xis-nav-item active"><i class="fa-solid fa-eye"></i> Overview</a>
+            <button id="btnOpenWebcam" class="xis-nav-item" style="width: 100%;"><i class="fa-solid fa-camera"></i> Live Capture</button>
 
-            <button id="btnRunInspection" class="cc-btn-full ind-btn btn-primary" style="margin-top: 6px;">
+            <div style="padding: 4px 0;">
+              <label class="cc-control-label" for="boardSelect" style="font-size: 11px; margin-bottom: 4px; display: block; color: #94a3b8;"><i class="fa-solid fa-flask"></i> Scenario</label>
+              <select id="boardSelect" class="ind-select" style="width: 100%; font-size: 12px; padding: 6px 8px;">
+                <option value="" disabled selected>-- Select Scenario or Upload --</option>
+                <optgroup label="✅ Golden Standard (PASS - 100% Target)">
+                  <option value="TB005">TB005 - 100% Perfect Master Board (Zero Defects)</option>
+                  <option value="TB006">TB006 - Golden Production Board 2 (PASS)</option>
+                  <option value="TB007">TB007 - Golden Production Board 3 (PASS)</option>
+                  <option value="TB008">TB008 - Golden Production Board 4 (PASS)</option>
+                  <option value="TB009">TB009 - Golden Production Board 5 (PASS)</option>
+                  <option value="TB001">TB001 - Production Batch Golden Sample (PASS)</option>
+                </optgroup>
+                <optgroup label="⚠️ Component Missing Defects (FAIL / REWORK)">
+                  <option value="TB010">TB010 - [DEFECT] Top-Right MCU (U1) Missing</option>
+                  <option value="TB011">TB011 - [DEFECT] Center QFN Processor (U5) Missing</option>
+                  <option value="TB013">TB013 - [DEFECT] Mid-Upper Controller (U2) Missing</option>
+                  <option value="TB015">TB015 - [DEFECT] Top SMT Bus Header (J_TOP) Missing</option>
+                  <option value="TB016">TB016 - [DEFECT] Bottom SMT Header (J_BOT1) Missing</option>
+                  <option value="TB017">TB017 - [DEFECT] Left SMT Passives Matrix (BANK_L1) Missing</option>
+                  <option value="TB018">TB018 - [DEFECT] Bottom-Right MCU (U4) Missing</option>
+                </optgroup>
+                <optgroup label="⚠️ Metrology, Tilt & Multi-Defect Stress (FAIL / REWORK)">
+                  <option value="TB003">TB003 - [DEFECT] Mid-Upper Controller (U2) Angular Tilt (18°)</option>
+                  <option value="TB014">TB014 - [DEFECT] Multi-Part Missing (U3 + C_R2 Capacitor Bank)</option>
+                  <option value="TB020">TB020 - [CRITICAL FAIL] Dual Core Missing (U1 MCU + U5 Processor)</option>
+                  <option value="TB022">TB022 - [CRITICAL FAIL] Triple Controller Missing (U2 + U3 + U4)</option>
+                  <option value="TB031">TB031 - [CRITICAL FAIL] Multi-MCU Missing (U1 + U4 Missing)</option>
+                  <option value="TB032">TB032 - [CRITICAL DEFECT] Severe Substrate Burn & Rupture</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <button id="btnRunInspection" class="xis-nav-item xis-btn-run cc-btn-full" style="width: 100%; border: none; margin-top: 6px;">
               <i class="fa-solid fa-play"></i> Run Inspection
             </button>
 
-            <div class="cc-btn-stack" style="margin-top: 6px;">
-              <button id="btnOpenWebcam" class="cc-btn-full ind-btn btn-secondary">
-                <i class="fa-solid fa-camera"></i> Live Camera Capture
-              </button>
+            <button id="btnOpenCADModal" class="xis-nav-item" style="width: 100%; margin-top: 4px;"><i class="fa-solid fa-file-import"></i> Convert (Ingest CAD)</button>
 
-              <label for="fileUploadInput" class="cc-btn-full ind-btn btn-secondary" style="cursor: pointer; text-align: center;">
-                <i class="fa-solid fa-folder-open"></i> Upload Test Board
-              </label>
-              <input type="file" id="fileUploadInput" accept="image/png, image/jpeg" hidden>
-
-              <label for="refUploadInput" class="cc-btn-full ind-btn btn-outline" style="cursor: pointer; text-align: center;">
-                <i class="fa-solid fa-star text-amber"></i> Upload Master Ref
+            <div style="display: flex; gap: 6px; margin-top: 8px;">
+              <label for="refUploadInput" class="ind-btn btn-outline" style="flex: 1; cursor: pointer; text-align: center; font-size: 11px; padding: 6px 8px;">
+                <i class="fa-solid fa-star text-amber"></i> Upload Ref
               </label>
               <input type="file" id="refUploadInput" accept="image/png, image/jpeg" hidden>
 
-              <button id="btnSetGolden" class="cc-btn-full ind-btn btn-outline">
-                <i class="fa-solid fa-check-double"></i> Set Golden Master
-              </button>
-
-              <button id="btnOpenCADModal" class="cc-btn-full ind-btn btn-secondary" style="background: rgba(59, 130, 246, 0.2); border-color: #3B82F6; color: #93C5FD;">
-                <i class="fa-solid fa-file-import"></i> Ingest CAD (.csv)
+              <button id="btnSetGolden" class="ind-btn btn-outline" style="flex: 1; font-size: 11px; padding: 6px 8px;">
+                <i class="fa-solid fa-check-double"></i> Set Golden
               </button>
             </div>
           </div>
@@ -202,9 +216,26 @@
       </aside>
 
       <!-- ========================================================
-           COLUMN 2 (CENTER): LIVE PCB VIEWPORT & METROLOGY TABLE
+           COLUMN 2 (CENTER): DOMINANT CONVEYOR BOOTH & METROLOGY
            ======================================================== -->
       <section class="cc-viewport-center">
+
+        <!-- Dominant Conveyor Optical Inspection Booth Viewport -->
+        <section class="xis-conveyor-viewport" id="viewportSection" style="margin-bottom: 16px;">
+          <div class="xis-conveyor-panels">
+            <div class="xis-conveyor-panel"></div>
+            <div class="xis-conveyor-panel"></div>
+            <div class="xis-conveyor-panel"></div>
+            <div class="xis-conveyor-panel"></div>
+          </div>
+          <div class="xis-watermark">xis<span>.</span>ai</div>
+          <div class="xis-board-frame" id="conveyorBoardFrame">
+            <img id="imgConveyorMain" src="/static/placeholder.png" alt="Current Board Optical Inspection">
+            <div id="xisBboxBorder" class="xis-bbox-border">
+              <div id="xisBboxTag" class="xis-bbox-tag">OK</div>
+            </div>
+          </div>
+        </section>
 
         <!-- Dominant Inspection Verdict & Radial Quality Score -->
         <section class="summary-hero-card" id="heroSummaryCard">
@@ -323,7 +354,7 @@
 
           <div class="three-panel-workspace">
             <div class="panel-box">
-              <div class="box-tag"><i class="fa-solid fa-star text-amber"></i> Golden Master Masterpiece</div>
+              <div class="box-tag"><i class="fa-solid fa-star text-amber"></i> Golden Master Reference</div>
               <div class="box-canvas-wrapper" id="wrapRef"><img id="imgGoldenRef" src="/static/placeholder.png" alt="Golden Reference"></div>
             </div>
             <div class="panel-box">
@@ -384,9 +415,22 @@
       </section>
 
       <!-- ========================================================
-           COLUMN 3 (RIGHT): PCB SESSION, HUMAN REVIEW, DEFECTS, HISTORY
+           COLUMN 3 (RIGHT): RESULTS STACK, PCB SESSION, HUMAN REVIEW
            ======================================================== -->
       <aside class="cc-sidebar-right">
+
+        <!-- Results Panel (xis.ai card stack at top of right panel) -->
+        <div class="cc-card" id="boardHistoryCard" style="padding: 14px;">
+          <div class="xis-results-header">
+            <span style="font-size: 15px; font-weight: 800; color: #f8fafc;"><i class="fa-solid fa-rectangle-list text-primary"></i> Results</span>
+            <span class="cc-badge tag-pass" id="boardHistoryCountTag">0 Boards</span>
+          </div>
+          <div class="xis-results-stack" id="boardHistoryList">
+            <div style="font-size: 12px; color: #64748B; text-align: center; padding: 20px;">
+              No prior boards in memory. Complete an inspection to record results.
+            </div>
+          </div>
+        </div>
 
         <!-- Current PCB Session & Explainable AI Card -->
         <div class="cc-card" id="sessionDetailsCard">
@@ -475,19 +519,6 @@
             <span class="cc-badge tag-fail" id="defectCardsCountTag">0 active</span>
           </div>
           <div class="defect-cards-grid" id="defectCardsContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
-
-        <!-- Board History Panel -->
-        <div class="cc-card" id="boardHistoryCard">
-          <div class="cc-card-header">
-            <span class="cc-card-title"><i class="fa-solid fa-history text-cyan"></i> Board History</span>
-            <span class="cc-badge tag-neutral" id="boardHistoryCountTag">0 Boards</span>
-          </div>
-          <div class="board-history-list" id="boardHistoryList">
-            <div style="font-size: 12px; color: #64748B; text-align: center; padding: 20px;">
-              No prior boards in memory. Complete an inspection to record history.
-            </div>
-          </div>
         </div>
 
       </aside>

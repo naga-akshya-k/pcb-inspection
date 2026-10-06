@@ -196,6 +196,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const thisReqId = ++scenarioRequestId;
     const imgUrl = `/evaluation/test_boards/${boardId}.png`;
     imgTestInput.src = imgUrl;
+    const imgConveyorMain = document.getElementById('imgConveyorMain');
+    if (imgConveyorMain) imgConveyorMain.src = imgUrl;
+    const tryCardThumb = document.getElementById('tryCardThumb');
+    if (tryCardThumb) tryCardThumb.src = imgUrl;
     imgGoldenRef.src = '/server/reference/golden_board.png?t=' + Date.now();
     lastUploadedFile = null;
 
@@ -386,7 +390,11 @@ document.addEventListener('DOMContentLoaded', () => {
         lastUploadedFile = file;
         const reader = new FileReader();
         reader.onload = (ev) => { 
-          imgTestInput.src = ev.target.result; 
+          imgTestInput.src = ev.target.result;
+          const imgConveyorMain = document.getElementById('imgConveyorMain');
+          if (imgConveyorMain) imgConveyorMain.src = ev.target.result;
+          const tryCardThumb = document.getElementById('tryCardThumb');
+          if (tryCardThumb) tryCardThumb.src = ev.target.result;
         };
         reader.readAsDataURL(file);
         const serialName = file.name.replace(/\.[^/.]+$/, "") || "CUSTOM_BOARD";
@@ -516,6 +524,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const hi = data.health_index ?? 1.0;
     const latency = data.processing_time_ms ?? 182;
     const defCount = data.defective_components ?? 0;
+
+    // Update Dominant Conveyor Booth Image & Dynamic [OK] / [FAIL] Bounding Box
+    const displayImgSrc = data.overlay_image_b64 
+      ? `data:image/png;base64,${data.overlay_image_b64}` 
+      : (data.image_url || imgTestInput.src);
+
+    const imgConveyorMain = document.getElementById('imgConveyorMain');
+    if (imgConveyorMain) imgConveyorMain.src = displayImgSrc;
+
+    const tryCardThumb = document.getElementById('tryCardThumb');
+    if (tryCardThumb) tryCardThumb.src = displayImgSrc;
+
+    const xisBboxBorder = document.getElementById('xisBboxBorder');
+    const xisBboxTag = document.getElementById('xisBboxTag');
+    if (xisBboxBorder && xisBboxTag) {
+      if (verdict === 'PASS') {
+        xisBboxBorder.className = 'xis-bbox-border';
+        xisBboxTag.className = 'xis-bbox-tag';
+        xisBboxTag.textContent = 'OK';
+      } else {
+        xisBboxBorder.className = 'xis-bbox-border fail';
+        xisBboxTag.className = 'xis-bbox-tag fail';
+        xisBboxTag.textContent = (verdict === 'REWORK') ? 'REWORK' : 'FAIL';
+      }
+    }
 
     verdictTitle.textContent = `BOARD ${verdict}`;
     heroSerial.textContent = `SERIAL: ${serial}`;
@@ -1347,6 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 23. Board History Panel ---
+  // --- 23. Board History Panel (xis.ai Results Stack) ---
   async function fetchBoardHistory() {
     if (!boardHistoryList) return;
     try {
@@ -1363,23 +1397,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         boardHistoryList.innerHTML = history.map(item => {
           const v = item.final_verdict || item.ai_verdict || 'PASS';
-          let badgeClass = 'tag-pass';
-          if (v === 'REWORK') badgeClass = 'tag-rework';
-          else if (v === 'FAIL') badgeClass = 'tag-fail';
-
+          const isPass = (v === 'PASS');
+          const borderClass = isPass ? 'pass' : 'fail';
           const isActive = (item.pcb_id === activeId || item.serial_number === activeId);
           const tStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : 'Recent';
-          const defCount = item.defects ? item.defects.length : 0;
+          const defCount = item.defects ? item.defects.length : (item.defective_components ?? 0);
+          const imgSrc = item.image_url || `/evaluation/test_boards/${item.serial_number || 'TB005'}.png`;
+
+          // Small red indicator overlay boxes on FAIL card thumbnails
+          const defectOverlay = !isPass ? `
+            <div class="xis-thumb-defect-box" style="top: 25%; left: 35%; width: 28px; height: 22px;"></div>
+            <div class="xis-thumb-defect-box" style="top: 60%; left: 60%; width: 22px; height: 18px;"></div>
+          ` : '';
 
           return `
-            <div class="board-history-item ${isActive ? 'active' : ''}" onclick="window.inspectraSelectBoard('${item.pcb_id}')">
-              <div class="bhi-top">
-                <span class="bhi-pcbid">${item.pcb_id}</span>
-                <span class="bhi-badge ${badgeClass}">${v}</span>
+            <div class="xis-result-thumb-card ${borderClass} ${isActive ? 'active' : ''}" onclick="window.inspectraSelectBoard('${item.pcb_id}')">
+              <div style="position: relative; overflow: hidden; border-radius: 4px; background: #03060d;">
+                <img src="${imgSrc}" alt="${item.serial_number}" onerror="this.src='/static/placeholder.png';">
+                ${defectOverlay}
+                <span class="cc-badge ${isPass ? 'tag-pass' : 'tag-fail'}" style="position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; padding: 2px 6px;">
+                  ${v}
+                </span>
               </div>
-              <div class="bhi-bottom">
-                <span>SN: ${item.serial_number}</span>
-                <span>${tStr} &bull; ${defCount} def</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px;">
+                <strong style="color: #f8fafc; font-family: var(--font-mono);">${item.pcb_id}</strong>
+                <span style="color: #94a3b8; font-size: 11px;">SN: ${item.serial_number}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 2px;">
+                <span>${tStr}</span>
+                <span style="color: ${isPass ? '#10b981' : '#ef4444'}; font-weight: 600;">${defCount} defect${defCount === 1 ? '' : 's'}</span>
               </div>
             </div>
           `;
@@ -1396,7 +1442,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (session) {
         currentInspectionData = session;
         const sName = session.serial_number || session.pcb_id;
-        if (session.image_url) imgTestInput.src = session.image_url;
+        const displaySrc = session.overlay_image_b64 
+          ? `data:image/png;base64,${session.overlay_image_b64}` 
+          : (session.image_url || `/evaluation/test_boards/${sName}.png`);
+        imgTestInput.src = displaySrc;
+        const imgConveyorMain = document.getElementById('imgConveyorMain');
+        if (imgConveyorMain) imgConveyorMain.src = displaySrc;
+        const tryCardThumb = document.getElementById('tryCardThumb');
+        if (tryCardThumb) tryCardThumb.src = displaySrc;
         renderDashboard(session, sName);
       }
     }
@@ -1408,7 +1461,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sessionData && (sessionData.pcb_id || sessionData.serial_number)) {
         currentInspectionData = sessionData;
         const sName = sessionData.serial_number || sessionData.pcb_id;
-        if (sessionData.image_url) imgTestInput.src = sessionData.image_url;
+        const displaySrc = sessionData.overlay_image_b64 
+          ? `data:image/png;base64,${sessionData.overlay_image_b64}` 
+          : (sessionData.image_url || imgTestInput.src);
+        imgTestInput.src = displaySrc;
+        const imgConveyorMain = document.getElementById('imgConveyorMain');
+        if (imgConveyorMain) imgConveyorMain.src = displaySrc;
+        const tryCardThumb = document.getElementById('tryCardThumb');
+        if (tryCardThumb) tryCardThumb.src = displaySrc;
         renderDashboard(sessionData, sName);
         fetchCFXTelemetry();
       }
@@ -1427,7 +1487,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (initialSession && (initialSession.pcb_id || initialSession.serial_number)) {
       currentInspectionData = initialSession;
       const sName = initialSession.serial_number || initialSession.pcb_id;
-      if (initialSession.image_url) imgTestInput.src = initialSession.image_url;
+      const displaySrc = initialSession.overlay_image_b64 
+        ? `data:image/png;base64,${initialSession.overlay_image_b64}` 
+        : (initialSession.image_url || imgTestInput.src);
+      imgTestInput.src = displaySrc;
+      const imgConveyorMain = document.getElementById('imgConveyorMain');
+      if (imgConveyorMain) imgConveyorMain.src = displaySrc;
+      const tryCardThumb = document.getElementById('tryCardThumb');
+      if (tryCardThumb) tryCardThumb.src = displaySrc;
       renderDashboard(initialSession, sName);
     }
     fetchBoardHistory();

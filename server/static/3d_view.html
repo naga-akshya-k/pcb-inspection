@@ -804,6 +804,15 @@
       if (selectExplodeFeature) {
         selectExplodeFeature.addEventListener('change', (e) => {
           explodeFeatureType = e.target.value;
+          isExplodeActive = true;
+          if (explodeStateText) {
+            explodeStateText.textContent = 'ACTIVE';
+            explodeStateText.style.color = '#34D399';
+          }
+          if (btnToggleExplode) {
+            btnToggleExplode.style.background = 'rgba(16, 185, 129, 0.25)';
+            btnToggleExplode.style.borderColor = '#10B981';
+          }
           renderExplosionLayers();
         });
       }

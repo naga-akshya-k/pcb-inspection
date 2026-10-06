@@ -994,20 +994,21 @@
       buildBoardScene();
     }
 
-    function getActiveRadiographUrl() {
-      if (currentMaterialFilter !== "all") {
-        return `/static/boards/mat_${currentMaterialFilter}.png`;
-      }
-      
-      if (currentMainMode === "multispectral") {
-        return `/static/boards/mat_all.png`;
-      }
-
+    function getFullPcbXrayUrl() {
       if (customModeDataUrls && customModeDataUrls[currentMainMode]) {
         return customModeDataUrls[currentMainMode];
       }
-
+      if (currentMainMode === "multispectral") {
+        return `/static/boards/mat_all.png`;
+      }
       return `/static/boards/${activeBoardId}_xray_${currentMainMode}.png`;
+    }
+
+    function getActiveFeatureUrl() {
+      if (currentMaterialFilter !== "all") {
+        return `/static/boards/mat_${currentMaterialFilter}.png`;
+      }
+      return getFullPcbXrayUrl();
     }
 
     function buildBoardScene() {
@@ -1021,29 +1022,50 @@
       while (anomalyMarkersGroup.children.length > 0) anomalyMarkersGroup.remove(anomalyMarkersGroup.children[0]);
       pulsingBeacons = [];
 
-      const radiographUrl = getActiveRadiographUrl();
-      const radiographTex = textureLoader.load(
-        radiographUrl,
+      // 1. Lower Layer: Full PCB X-Ray Radiograph
+      const fullXrayUrl = getFullPcbXrayUrl();
+      const pcbXrayTex = textureLoader.load(
+        fullXrayUrl,
         undefined,
         undefined,
         (err) => {
-          console.warn("Radiograph load fallback:", err);
+          console.warn("Full PCB X-Ray load fallback:", err);
+          if (baseRadiographMesh && baseRadiographMesh.material) {
+            baseRadiographMesh.material.map = textureLoader.load(`/static/boards/TB005_xray_multispectral.png`);
+            baseRadiographMesh.material.needsUpdate = true;
+          }
+        }
+      );
+      pcbXrayTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      pcbXrayTex.generateMipmaps = true;
+      pcbXrayTex.minFilter = THREE.LinearMipmapLinearFilter;
+      pcbXrayTex.magFilter = THREE.LinearFilter;
+      pcbXrayTex.encoding = THREE.sRGBEncoding;
+
+      // 2. Upper Layer: Selected Feature Texture (e.g. IC Chips, Solder, Traces, Passives, etc.)
+      const featureUrl = getActiveFeatureUrl();
+      const featureTex = textureLoader.load(
+        featureUrl,
+        undefined,
+        undefined,
+        (err) => {
+          console.warn("Feature texture fallback:", err);
           if (topRadiographMesh && topRadiographMesh.material) {
-            topRadiographMesh.material.map = textureLoader.load(`/static/boards/TB005_xray_${currentMainMode}.png`);
+            topRadiographMesh.material.map = pcbXrayTex;
             topRadiographMesh.material.needsUpdate = true;
           }
         }
       );
-      radiographTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      radiographTex.generateMipmaps = true;
-      radiographTex.minFilter = THREE.LinearMipmapLinearFilter;
-      radiographTex.magFilter = THREE.LinearFilter;
-      radiographTex.encoding = THREE.sRGBEncoding;
+      featureTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      featureTex.generateMipmaps = true;
+      featureTex.minFilter = THREE.LinearMipmapLinearFilter;
+      featureTex.magFilter = THREE.LinearFilter;
+      featureTex.encoding = THREE.sRGBEncoding;
 
       const innerTex = textureLoader.load(`/static/boards/mat_traces.png`);
       innerTex.encoding = THREE.sRGBEncoding;
 
-      // 1. Translucent Dielectric FR4 Glass Substrate Box (with Cyan glowing edge)
+      // Translucent Dielectric FR4 Glass Substrate Box (with Cyan glowing edge)
       const substrateGeo = new THREE.BoxGeometry(boardW, boardT, boardL);
       const glassEdgeMat = new THREE.MeshBasicMaterial({
         color: 0x06b6d4,
@@ -1052,7 +1074,7 @@
         wireframe: false
       });
       const substrateTopMat = new THREE.MeshBasicMaterial({
-        map: radiographTex,
+        map: pcbXrayTex,
         transparent: true,
         opacity: 0.95
       });
@@ -1069,10 +1091,10 @@
 
       const planeGeo = new THREE.PlaneGeometry(boardW, boardL);
 
-      // Lower Complete Board Base Plane (Always intact at y = 0 for spatial reference)
+      // Lower Complete Board Base Plane (Always shows the authentic PCB X-Ray radiograph)
       if (baseRadiographMesh) boardGroup.remove(baseRadiographMesh);
       const baseMat = new THREE.MeshBasicMaterial({
-        map: radiographTex,
+        map: pcbXrayTex,
         transparent: true,
         opacity: 0.95,
         side: THREE.DoubleSide
@@ -1085,9 +1107,9 @@
       boardGroup.add(xrayLaserGuidesGroup);
       boardGroup.add(belowSubstrateXrayGroup);
 
-      // Upper Subsurface Radiograph Layer (Elevates during explosion)
+      // Upper Subsurface Layer (Elevates showing isolated feature)
       const topMat = new THREE.MeshBasicMaterial({
-        map: radiographTex,
+        map: featureTex,
         transparent: true,
         opacity: 1.0,
         side: THREE.DoubleSide
@@ -1302,7 +1324,30 @@
       const xBtn = document.getElementById("btnModeXRay");
       if (xBtn) xBtn.classList.add("active");
 
-      buildBoardScene();
+      const featSelect = document.getElementById("xrayExplodeFeatureSelect");
+      const expSlider = document.getElementById("explodedSlider");
+
+      if (filterName === "all") {
+        if (featSelect) featSelect.value = "ALL";
+        if (expSlider) expSlider.value = "0";
+        buildBoardScene();
+        updateExplodedStack(0);
+      } else {
+        // AUTOMATICALLY EXPLODE THE BOARD SHOWING SELECTED FEATURE
+        let featKey = "ALL";
+        if (filterName === "chips") featKey = "CHIPS";
+        else if (filterName === "solder") featKey = "SOLDER";
+        else if (filterName === "passives") featKey = "PASSIVES";
+        else if (filterName === "traces") featKey = "TRACES";
+        else if (filterName === "vias") featKey = "VIAS";
+        else if (filterName === "substrate") featKey = "SUBSTRATE";
+
+        if (featSelect) featSelect.value = featKey;
+        if (expSlider) expSlider.value = "24";
+
+        buildBoardScene();
+        updateExplodedStack(24);
+      }
     }
 
     function updateCardActiveClasses(activeKey) {
@@ -1490,6 +1535,14 @@
         return;
       }
 
+      // Ensure Lower Base Layer explicitly shows the authentic X-Ray Radiograph of the PCB
+      if (baseRadiographMesh) {
+        baseRadiographMesh.visible = true;
+        baseRadiographMesh.position.y = boardT / 2 + 0.02;
+        baseRadiographMesh.material.map = textureLoader.load(getFullPcbXrayUrl());
+        baseRadiographMesh.material.needsUpdate = true;
+      }
+
       if (topRadiographMesh) {
         topRadiographMesh.visible = true;
         topRadiographMesh.position.y = (boardT / 2 + 0.05) + sep * 1.5;
@@ -1503,8 +1556,12 @@
           topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_traces.png');
         } else if (feat === "PASSIVES") {
           topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_passives.png');
+        } else if (feat === "VIAS") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_vias.png');
+        } else if (feat === "SUBSTRATE") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_substrate.png');
         } else {
-          topRadiographMesh.material.map = textureLoader.load(getActiveRadiographUrl());
+          topRadiographMesh.material.map = textureLoader.load(getActiveFeatureUrl());
         }
         topRadiographMesh.material.needsUpdate = true;
       }

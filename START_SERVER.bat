@@ -1,7 +1,7 @@
 @echo off
 title PCB AI Inspection & Photometric 3D Studio
 echo ===============================================================
-echo   STARTING PCB AI INSPECTION & PHOTOMETRIC 3D STUDIO (PORT 8080)
+echo   STARTING INSPECTRA AOI COMMAND CENTER & DIGITAL TWIN (PORT 8000)
 echo ===============================================================
 echo.
 
@@ -15,9 +15,8 @@ if errorlevel 1 (
     )
 )
 
-echo Launching Web Server at http://localhost:8080 ...
-start http://localhost:8080
-start http://localhost:8080/photometric-studio
-%PYTHON_CMD% -m uvicorn server.main:app --host 0.0.0.0 --port 8080 --reload
+echo Launching Web Server at http://localhost:8000 ...
+start http://localhost:8000
+%PYTHON_CMD% -m uvicorn server.main:app --host 127.0.0.1 --port 8000 --reload
 pause
 

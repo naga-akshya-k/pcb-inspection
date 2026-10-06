@@ -106,3 +106,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Defect / anomaly regions alone
   - Vertical laser alignment guide lines connect base coordinates with elevated radiographic features.
   - Multi-Layer Stack mode renders internal copper routing and bottom solder mask below the board substrate ($-Y$).
+
+---
+
+## [0.6.0-quality-intelligence] - 2026-10-06
+### Added
+- **Universal Header PCB Telemetry Synchronization** (`server/static/common.js`):
+  - Automatically ensures and dynamically injects the active PCB telemetry context (`#headerPcbId`) into the header of all 11 pages in the suite.
+  - Subscribes to SSE (`/api/events`) and `BroadcastChannel('inspectra_global_bus')` simultaneously, updating the active PCB pill and verdict status instantaneously across all open tabs.
+  - Automatic query-parameter deep-linking (`?pcb_id=...`) with automated session retrieval and active board propagation.
+- **IPC-A-610 Metrology Session Acceleration** (`server/static/metrology.html`):
+  - Direct rendering of pre-computed sub-pixel offsets ($\Delta X, \Delta Y$ in mm and px), rotational skew ($\Delta\theta$), side overhang %, and Pin-1 verification from active `PCBInspectionSession` in 0ms without redundant `/inspect` round-trips.
+  - Subscribed to `onInspectraSessionChange` and `onGlobalActiveBoardChange` for live real-time updates.
+- **Reactive Statistical Process Control (SPC)** (`server/static/spc.html`):
+  - Dynamically updates Six Sigma $p$-Chart Upper Control Limits (+3$\sigma$ UCL), Process Mean Center Line (CL), and Process Capability ($C_{pk}$) upon new board inspections or session selections across any open tab.
+- **Live Traceability & Industry 4.0 Streaming** (`server/static/audit.html`, `server/static/cfx.html`, `server/static/analytics.html`):
+  - `audit.html`: Real-time audit vault reloading on `onInspectraSessionChange`, keeping ISO 9001 SHA-256 cryptographic records synced across windows.
+  - `cfx.html`: Instantaneous IPC-CFX-2591 telemetry stream updates upon inspection completion or board change.
+  - `analytics.html`: Reactive re-rendering of FPY Yield Trend, Defect Category Breakdown, Pipeline Latency Breakdown, and Component Package Severity charts without manual page refresh.
+

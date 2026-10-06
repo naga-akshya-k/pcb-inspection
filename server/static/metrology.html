@@ -204,61 +204,73 @@
             throw new Error(err.detail || `HTTP ${inspResp.status}`);
           }
           const res = await inspResp.json();
-          const metrologyList = res.metrology || [];
-
-          tbody.innerHTML = metrologyList.map(m => {
-            let verdictBadge;
-            if (m.ipc_class_verdict === 'CLASS_3_TARGET') {
-              verdictBadge = `<span class="tag-badge tag-pass"><i class="fa-solid fa-circle-check"></i> CLASS 3 (TARGET)</span>`;
-            } else if (m.ipc_class_verdict === 'CLASS_2_ACCEPTABLE') {
-              verdictBadge = `<span class="tag-badge tag-rework"><i class="fa-solid fa-check"></i> CLASS 2 (ACCEPTABLE)</span>`;
-            } else {
-              verdictBadge = `<span class="tag-badge tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> ${m.ipc_class_verdict || 'DEFECT'}</span>`;
-            }
-
-            let overhangBadge;
-            if (m.max_overhang_pct <= 25.0) {
-              overhangBadge = `<code style="color: #34D399; font-weight: 700; background: rgba(16, 185, 129, 0.18); border-color: #10B981;">${m.max_overhang_pct.toFixed(1)}%</code>`;
-            } else if (m.max_overhang_pct <= 50.0) {
-              overhangBadge = `<code style="color: #FBBF24; font-weight: 700; background: rgba(245, 158, 11, 0.2); border-color: #F59E0B;">${m.max_overhang_pct.toFixed(1)}%</code>`;
-            } else {
-              overhangBadge = `<code style="color: #F87171; font-weight: 700; background: rgba(239, 68, 68, 0.25); border-color: #EF4444;">${m.max_overhang_pct.toFixed(1)}%</code>`;
-            }
-
-            const rotColor = Math.abs(m.rotation_deg) > 3.0 ? '#FBBF24' : '#38BDF8';
-
-            let polarityBadge;
-            if (m.polarity_status === 'PIN1_VERIFIED') {
-              polarityBadge = `<span class="tag-badge" style="background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid #10B981;"><i class="fa-solid fa-circle-dot"></i> PIN 1 VERIFIED</span>`;
-            } else if (m.polarity_status === 'STRIPE_VERIFIED') {
-              polarityBadge = `<span class="tag-badge" style="background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid #10B981;"><i class="fa-solid fa-barcode"></i> STRIPE VERIFIED</span>`;
-            } else if (m.polarity_status === 'PIN1_REVERSED_OR_MISSING' || m.polarity_status === 'STRIPE_REVERSED') {
-              polarityBadge = `<span class="tag-badge tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> REVERSED</span>`;
-            } else {
-              polarityBadge = `<span class="tag-badge" style="background: #1E293B; color: #CBD5E1; border: 1px solid #475569;">N/A (SYMMETRIC)</span>`;
-            }
-
-            return `
-              <tr>
-                <td><strong style="color: #FFFFFF; font-size: 14px;">${m.component_id}</strong></td>
-                <td><code>${m.delta_x_mm > 0 ? '+' : ''}${m.delta_x_mm.toFixed(3)} mm</code> <span style="color: #CBD5E1; font-size: 12px; margin-left: 4px;">(${m.delta_x_px > 0 ? '+' : ''}${m.delta_x_px} px)</span></td>
-                <td><code>${m.delta_y_mm > 0 ? '+' : ''}${m.delta_y_mm.toFixed(3)} mm</code> <span style="color: #CBD5E1; font-size: 12px; margin-left: 4px;">(${m.delta_y_px > 0 ? '+' : ''}${m.delta_y_px} px)</span></td>
-                <td><code style="color: ${rotColor};">${m.rotation_deg > 0 ? '+' : ''}${m.rotation_deg.toFixed(2)}&deg;</code></td>
-                <td>${overhangBadge}</td>
-                <td><code style="color: #E2E8F0; background: #0F172A; border-color: #334155;">Class 3 &le; 25% | Class 2 &le; 50%</code></td>
-                <td>${polarityBadge}</td>
-                <td>${verdictBadge}</td>
-              </tr>
-            `;
-          }).join('');
+          renderMetrologyList(res.metrology || []);
         } catch (e) {
           tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="color: #EF4444; padding: 20px;">Error measuring metrology: ${e.message}</td></tr>`;
         }
       }
 
+      function renderMetrologyList(metrologyList) {
+        if (!metrologyList || metrologyList.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="color: #94A3B8; padding: 20px;">No metrology records available for this board.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = metrologyList.map(m => {
+          let verdictBadge;
+          if (m.ipc_class_verdict === 'CLASS_3_TARGET') {
+            verdictBadge = `<span class="tag-badge tag-pass"><i class="fa-solid fa-circle-check"></i> CLASS 3 (TARGET)</span>`;
+          } else if (m.ipc_class_verdict === 'CLASS_2_ACCEPTABLE') {
+            verdictBadge = `<span class="tag-badge tag-rework"><i class="fa-solid fa-check"></i> CLASS 2 (ACCEPTABLE)</span>`;
+          } else {
+            verdictBadge = `<span class="tag-badge tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> ${m.ipc_class_verdict || 'DEFECT'}</span>`;
+          }
+
+          let overhangBadge;
+          const overhang = typeof m.max_overhang_pct === 'number' ? m.max_overhang_pct : 0;
+          if (overhang <= 25.0) {
+            overhangBadge = `<code style="color: #34D399; font-weight: 700; background: rgba(16, 185, 129, 0.18); border-color: #10B981;">${overhang.toFixed(1)}%</code>`;
+          } else if (overhang <= 50.0) {
+            overhangBadge = `<code style="color: #FBBF24; font-weight: 700; background: rgba(245, 158, 11, 0.2); border-color: #F59E0B;">${overhang.toFixed(1)}%</code>`;
+          } else {
+            overhangBadge = `<code style="color: #F87171; font-weight: 700; background: rgba(239, 68, 68, 0.25); border-color: #EF4444;">${overhang.toFixed(1)}%</code>`;
+          }
+
+          const rot = typeof m.rotation_deg === 'number' ? m.rotation_deg : 0;
+          const rotColor = Math.abs(rot) > 3.0 ? '#FBBF24' : '#38BDF8';
+          const dxMm = typeof m.delta_x_mm === 'number' ? m.delta_x_mm : 0;
+          const dyMm = typeof m.delta_y_mm === 'number' ? m.delta_y_mm : 0;
+          const dxPx = typeof m.delta_x_px === 'number' ? m.delta_x_px : 0;
+          const dyPx = typeof m.delta_y_px === 'number' ? m.delta_y_px : 0;
+
+          let polarityBadge;
+          if (m.polarity_status === 'PIN1_VERIFIED') {
+            polarityBadge = `<span class="tag-badge" style="background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid #10B981;"><i class="fa-solid fa-circle-dot"></i> PIN 1 VERIFIED</span>`;
+          } else if (m.polarity_status === 'STRIPE_VERIFIED') {
+            polarityBadge = `<span class="tag-badge" style="background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid #10B981;"><i class="fa-solid fa-barcode"></i> STRIPE VERIFIED</span>`;
+          } else if (m.polarity_status === 'PIN1_REVERSED_OR_MISSING' || m.polarity_status === 'STRIPE_REVERSED') {
+            polarityBadge = `<span class="tag-badge tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> REVERSED</span>`;
+          } else {
+            polarityBadge = `<span class="tag-badge" style="background: #1E293B; color: #CBD5E1; border: 1px solid #475569;">N/A (SYMMETRIC)</span>`;
+          }
+
+          return `
+            <tr>
+              <td><strong style="color: #FFFFFF; font-size: 14px;">${m.component_id}</strong></td>
+              <td><code>${dxMm > 0 ? '+' : ''}${dxMm.toFixed(3)} mm</code> <span style="color: #CBD5E1; font-size: 12px; margin-left: 4px;">(${dxPx > 0 ? '+' : ''}${dxPx} px)</span></td>
+              <td><code>${dyMm > 0 ? '+' : ''}${dyMm.toFixed(3)} mm</code> <span style="color: #CBD5E1; font-size: 12px; margin-left: 4px;">(${dyPx > 0 ? '+' : ''}${dyPx} px)</span></td>
+              <td><code style="color: ${rotColor};">${rot > 0 ? '+' : ''}${rot.toFixed(2)}&deg;</code></td>
+              <td>${overhangBadge}</td>
+              <td><code style="color: #E2E8F0; background: #0F172A; border-color: #334155;">Class 3 &le; 25% | Class 2 &le; 50%</code></td>
+              <td>${polarityBadge}</td>
+              <td>${verdictBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
       btnRun.addEventListener('click', () => runMetrology(boardSelect.value));
       boardSelect.addEventListener('change', () => runMetrology(boardSelect.value));
-      runMetrology(boardSelect.value);
 
       // CAD Modal
       const cadModal = document.getElementById('cadModal');
@@ -279,7 +291,7 @@
 
       function syncActiveMetrology(boardInfo) {
         if (!boardInfo) return;
-        const bId = boardInfo.board_id || boardInfo.serial || 'TB005';
+        const bId = boardInfo.serial_number || boardInfo.board_id || boardInfo.serial || 'TB005';
         if (boardSelect) {
           let found = false;
           for (let opt of boardSelect.options) {
@@ -301,13 +313,28 @@
             boardSelect.value = bId;
           }
         }
-        runMetrology(bId);
+
+        // Direct rendering if metrology payload is present in session
+        const metroData = boardInfo.metrology || (boardInfo.session && boardInfo.session.metrology);
+        if (Array.isArray(metroData) && metroData.length > 0) {
+          renderMetrologyList(metroData);
+        } else {
+          runMetrology(bId);
+        }
       }
 
-      if (typeof getGlobalActiveBoard === 'function') {
-        getGlobalActiveBoard().then(active => {
-          if (active && (active.board_id || active.serial)) {
-            syncActiveMetrology(active);
+      if (typeof getInspectraActiveSession === 'function') {
+        getInspectraActiveSession().then(session => {
+          if (session && (session.pcb_id || session.serial_number)) {
+            syncActiveMetrology(session);
+          } else if (typeof getGlobalActiveBoard === 'function') {
+            getGlobalActiveBoard().then(active => {
+              if (active && (active.board_id || active.serial)) {
+                syncActiveMetrology(active);
+              } else {
+                runMetrology(boardSelect.value || 'TB005');
+              }
+            });
           } else {
             runMetrology(boardSelect.value || 'TB005');
           }
@@ -316,6 +343,9 @@
         runMetrology(boardSelect.value || 'TB005');
       }
 
+      if (typeof onInspectraSessionChange === 'function') {
+        onInspectraSessionChange(syncActiveMetrology);
+      }
       if (typeof onGlobalActiveBoardChange === 'function') {
         onGlobalActiveBoardChange(syncActiveMetrology);
       }

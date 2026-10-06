@@ -288,3 +288,86 @@ function getUrlPcbId() {
   return params.get('pcb_id') || params.get('board_id') || params.get('serial');
 }
 
+// ==========================================================================
+// UNIVERSAL HEADER PCB TELEMETRY INJECTION & DYNAMIC CROSS-TAB SYNC
+// Ensures every single page in the suite displays and synchronizes the active
+// inspected PCB context in real time.
+// ==========================================================================
+
+function ensureHeaderPcbContext() {
+  const telemPanel = document.querySelector('.telemetry-panel');
+  if (!telemPanel) return;
+
+  let pcbPill = document.getElementById('headerPcbId');
+  if (!pcbPill) {
+    const item = document.createElement('div');
+    item.className = 'telem-item';
+    item.id = 'headerPcbContextItem';
+    item.innerHTML = `
+      <div class="telem-dot active" style="background: #06b6d4; box-shadow: 0 0 8px #06b6d4;"></div>
+      <div class="telem-info">
+        <span class="telem-label">ACTIVE PCB CONTEXT</span>
+        <span class="telem-val text-cyan font-mono font-bold" id="headerPcbId">CONNECTING...</span>
+      </div>
+    `;
+    telemPanel.insertBefore(item, telemPanel.firstChild);
+  }
+}
+
+function updateActivePcbDisplays(session) {
+  if (!session) return;
+  const pcbText = session.pcb_id || session.serial_number || 'NONE';
+  const verdict = session.final_verdict || session.ai_verdict || 'READY';
+
+  const headerPcb = document.getElementById('headerPcbId');
+  if (headerPcb) {
+    headerPcb.textContent = `${pcbText} [${verdict}]`;
+    headerPcb.className = `telem-val font-mono font-bold ${
+      verdict === 'PASS' ? 'text-pass' : verdict === 'FAIL' ? 'text-fail' : verdict === 'REWORK' ? 'text-warn' : 'text-cyan'
+    }`;
+  }
+}
+
+// Auto-initialize Header PCB Context and register live listeners
+function initUniversalHeaderContext() {
+  ensureHeaderPcbContext();
+
+  const urlPcb = getUrlPcbId();
+  if (urlPcb) {
+    getInspectraSession(urlPcb).then(session => {
+      if (session) {
+        updateActivePcbDisplays(session);
+        setGlobalActiveBoard({
+          board_id: session.serial_number,
+          serial: session.serial_number,
+          pcb_id: session.pcb_id,
+          verdict: session.final_verdict || session.ai_verdict,
+          defective_components: session.defective_components,
+          image_url: session.image_url,
+          overlay_b64: session.overlay_image_b64,
+          depth_heatmap_b64: session.depth_heatmap_b64,
+          components: session.components,
+          metrology: session.metrology,
+          defects: session.defects,
+          session: session
+        });
+      }
+    });
+  } else {
+    getInspectraActiveSession().then(updateActivePcbDisplays);
+  }
+
+  onInspectraSessionChange(updateActivePcbDisplays);
+  onGlobalActiveBoardChange((board) => {
+    if (board) {
+      updateActivePcbDisplays(board.session || board);
+    }
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initUniversalHeaderContext);
+} else {
+  initUniversalHeaderContext();
+}
+

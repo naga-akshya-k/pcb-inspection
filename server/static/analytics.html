@@ -122,7 +122,12 @@
 
   <script src="/static/common.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    let fpyChartInstance = null;
+    let defectDistChartInstance = null;
+    let latencyChartInstance = null;
+    let defectTypeChartInstance = null;
+
+    async function loadAndRenderAnalytics() {
       let logs = [];
       try {
         logs = await fetch('/audit/logs').then(r => r.json());
@@ -132,9 +137,12 @@
 
       const hasLogs = Array.isArray(logs) && logs.length > 0;
       const grid = document.querySelector('.analytics-charts-grid');
+      const existingBanner = document.getElementById('awaitingBanner');
+      if (existingBanner) existingBanner.remove();
 
       if (!hasLogs) {
         const banner = document.createElement('div');
+        banner.id = 'awaitingBanner';
         banner.style.cssText = 'grid-column: 1 / -1; background: rgba(15, 23, 42, 0.8); border: 1px dashed #3b82f6; border-radius: 10px; padding: 24px; text-align: center; color: #94a3b8; margin-bottom: 12px;';
         banner.innerHTML = `
           <i class="fa-solid fa-clock-rotate-left fa-2x" style="color: #60a5fa; margin-bottom: 10px; display: block;"></i>
@@ -155,7 +163,8 @@
         fpyData.push(parseFloat(((l.health_index ?? 1.0) * 100).toFixed(1)));
       });
 
-      new Chart(document.getElementById('fpyChart').getContext('2d'), {
+      if (fpyChartInstance) fpyChartInstance.destroy();
+      fpyChartInstance = new Chart(document.getElementById('fpyChart').getContext('2d'), {
         type: 'line',
         data: {
           labels: fpyLabels.length ? fpyLabels.slice(-20) : ['Awaiting Runs'],
@@ -208,7 +217,8 @@
         ? ['#EF4444', '#F59E0B', '#06B6D4', '#A855F7']
         : ['#10B981'];
 
-      new Chart(document.getElementById('defectDistChart').getContext('2d'), {
+      if (defectDistChartInstance) defectDistChartInstance.destroy();
+      defectDistChartInstance = new Chart(document.getElementById('defectDistChart').getContext('2d'), {
         type: 'doughnut',
         data: {
           labels: defectDonutLabels,
@@ -242,7 +252,8 @@
           ]
         : [0, 0, 0, 0, 0, 0];
 
-      new Chart(document.getElementById('latencyChart').getContext('2d'), {
+      if (latencyChartInstance) latencyChartInstance.destroy();
+      latencyChartInstance = new Chart(document.getElementById('latencyChart').getContext('2d'), {
         type: 'bar',
         data: {
           labels: ['Optical Prep', 'Sub-pixel Align', '2D Tri-Metric', '3D Plane Leveling', 'IPC Metrology', 'CFX Telemetry'],
@@ -282,7 +293,8 @@
         }
       });
 
-      new Chart(document.getElementById('defectTypeChart').getContext('2d'), {
+      if (defectTypeChartInstance) defectTypeChartInstance.destroy();
+      defectTypeChartInstance = new Chart(document.getElementById('defectTypeChart').getContext('2d'), {
         type: 'bar',
         data: {
           labels: pkgCats,
@@ -301,6 +313,16 @@
           }
         }
       });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAndRenderAnalytics();
+
+      if (typeof onInspectraSessionChange === 'function') {
+        onInspectraSessionChange(() => {
+          loadAndRenderAnalytics();
+        });
+      }
     });
   </script>
 </body>

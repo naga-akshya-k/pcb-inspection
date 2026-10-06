@@ -405,6 +405,12 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadAndRenderSPC();
 
+      if (typeof onInspectraSessionChange === 'function') {
+        onInspectraSessionChange(() => {
+          loadAndRenderSPC();
+        });
+      }
+
       if (typeof onGlobalActiveBoardChange === 'function') {
         onGlobalActiveBoardChange(() => {
           loadAndRenderSPC();

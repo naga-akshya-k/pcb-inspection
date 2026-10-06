@@ -136,6 +136,12 @@
       btnRefresh.addEventListener('click', fetchCFX);
       fetchCFX();
       setInterval(fetchCFX, 5000);
+
+      if (typeof onInspectraSessionChange === 'function') {
+        onInspectraSessionChange(() => {
+          fetchCFX();
+        });
+      }
     });
   </script>
 </body>

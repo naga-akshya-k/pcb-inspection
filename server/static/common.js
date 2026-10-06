@@ -58,11 +58,13 @@ function setGlobalActiveBoard(boardInfo) {
   try {
     localStorage.setItem('aoi_active_board', JSON.stringify(boardInfo));
     localStorage.setItem('activeBoard3D', JSON.stringify({
+      pcb_id: boardInfo.pcb_id || boardInfo.serial || boardInfo.board_id,
       serial: boardInfo.serial || boardInfo.board_id,
       verdict: boardInfo.verdict || 'PASS',
       components: boardInfo.components || [],
       metrology: boardInfo.metrology || [],
-      image_b64: boardInfo.image_b64 || boardInfo.overlay_b64
+      image_b64: boardInfo.image_b64 || boardInfo.overlay_b64,
+      image_url: boardInfo.image_url
     }));
   } catch (err) {
     console.warn("localStorage write error", err);

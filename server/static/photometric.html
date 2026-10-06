@@ -377,6 +377,9 @@
       } else if (boardInfo.verdict === "PASS") {
         if (select) select.value = "ps_sample_optimal";
         loadPhotometricSample("ps_sample_optimal");
+      } else {
+        if (select) select.value = "ps_sample_tombstone";
+        loadPhotometricSample("ps_sample_tombstone");
       }
     }
 

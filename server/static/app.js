@@ -485,10 +485,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Synchronize active board to all suite pages (360 3D, Photometrics, X-Ray, Metrology)
       if (typeof setGlobalActiveBoard === 'function') {
-        const imgUrl = lastUploadedFile ? imgTestInput.src : `/evaluation/test_boards/${serialName}.png`;
+        const imgUrl = currentInspectionData.image_url || (lastUploadedFile ? imgTestInput.src : `/evaluation/test_boards/${serialName}.png`);
         setGlobalActiveBoard({
           board_id: serialName,
           serial: serialName,
+          pcb_id: currentInspectionData.pcb_id || serialName,
           verdict: currentInspectionData.verdict,
           defective_components: currentInspectionData.defective_components,
           image_url: imgUrl,
@@ -812,7 +813,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const metro = (metrologyList || []).find(m => m.component_id === d.id) || {};
 
       return `
-        <div class="defect-card">
+        <div class="defect-card" style="cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" 
+             onclick="window.inspectraOpenDefectIn3D(currentInspectionData?.pcb_id, currentInspectionData?.serial_number || '${d.id}')" 
+             title="Click to view ${d.id} defect in 3D Digital Twin">
           <div class="dcard-head">
             <div class="dcard-title">${defectType}</div>
             <div class="dcard-badge">${d.status || 'DEFECT'}</div>
@@ -822,6 +825,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="dcard-row"><span>Measured Shift:</span> <span>&Delta;X: ${metro.delta_x_mm || 0}mm, &Delta;Y: ${metro.delta_y_mm || 0}mm</span></div>
           <div class="dcard-row"><span>Rotation / Overhang:</span> <span>&Delta;&theta;: ${metro.rotation_deg || 0}&deg; &bull; ${metro.max_overhang_pct || 0}%</span></div>
           <div class="dcard-row"><span>IPC-A-610 Status:</span> <span class="text-fail">${metro.ipc_class_verdict || 'CLASS_2_FAIL'}</span></div>
+          <button class="ind-btn btn-sm" style="margin-top: 8px; width: 100%; font-size: 11px; background: rgba(239,68,68,0.18); border: 1px solid #ef4444; color: #fca5a5; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <i class="fa-solid fa-cube"></i> Inspect in 3D Digital Twin ➔
+          </button>
         </div>
       `;
     }).join('');

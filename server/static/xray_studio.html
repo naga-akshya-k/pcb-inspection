@@ -1409,9 +1409,13 @@
       activeCustomImageSrc = null;
 
       // If custom uploaded board from page 1, process radiographs
-      if (boardInfo.image_b64 || (boardInfo.image_url && boardInfo.image_url.includes('active_custom_board'))) {
+      if (boardInfo.image_b64 || boardInfo.overlay_b64 || (boardInfo.image_url && !boardInfo.image_url.includes('/evaluation/test_boards/TB'))) {
         try {
-          const imgSrc = boardInfo.image_b64 ? `data:image/png;base64,${boardInfo.image_b64}` : boardInfo.image_url;
+          let rawSrc = boardInfo.image_b64 || boardInfo.overlay_b64 || boardInfo.image_url;
+          let imgSrc = rawSrc;
+          if (rawSrc && !rawSrc.startsWith('data:') && !rawSrc.startsWith('/') && !rawSrc.startsWith('http')) {
+            imgSrc = `data:image/png;base64,${rawSrc}`;
+          }
           activeCustomImageSrc = imgSrc;
           const blob = await fetch(imgSrc).then(r => r.blob());
           const fd = new FormData();

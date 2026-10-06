@@ -13,12 +13,17 @@ def test_boards():
     aligner = PCBAligner()
     engine = MetrologyEngine(px_to_mm_scale=0.05)
 
-    ref_img = cv2.imread("server/reference/golden_board.png")
-    with open("server/config/components.json") as f:
+    ref_path = os.path.join(ROOT_DIR, "server", "reference", "golden_board.png")
+    cfg_path = os.path.join(ROOT_DIR, "server", "config", "components.json")
+    ref_img = cv2.imread(ref_path)
+    with open(cfg_path) as f:
         comps = json.load(f)
 
     for board_id in ["TB001", "TB002", "TB003", "TB004", "TB005"]:
-        test_img = cv2.imread(f"evaluation/test_boards/{board_id}.png")
+        test_path = os.path.join(ROOT_DIR, "evaluation", "test_boards", f"{board_id}.png")
+        test_img = cv2.imread(test_path)
+        if test_img is None or ref_img is None:
+            continue
         aligned, q, _, _ = aligner.align(test_img, ref_img)
         print(f"\n==================== BOARD: {board_id} ====================")
         

@@ -210,6 +210,12 @@
     <div class="viewport-3d-container">
       <canvas id="webglCanvas"></canvas>
 
+      <!-- Floating Defect Pinpoint Notification (Top Center) -->
+      <div id="hudDefectPill" style="position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.95); border: 2px solid #ef4444; color: #fca5a5; padding: 10px 22px; border-radius: 30px; font-size: 13px; font-weight: 700; display: none; align-items: center; gap: 10px; z-index: 12; box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); backdrop-filter: blur(8px);">
+        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 16px;"></i>
+        <span id="hudDefectPillText">DEFECT PINPOINTED</span>
+      </div>
+
       <!-- 3D HUD Top Left -->
       <div class="hud-3d-overlay">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -519,8 +525,17 @@
           // Populate lower complete board components
           populateLowerBaseComponents(componentsData, metrologyData);
 
-          // Update exploded layer
+          // Update exploded layer and defect markers
           renderExplosionLayers();
+          renderDefectMarkers();
+
+          // Smoothly focus camera onto defect area if focus=defect or defect present
+          const params = new URLSearchParams(window.location.search);
+          if ((params.get('focus') === 'defect' || (title && title.includes('FAIL')) || (title && title.includes('REWORK'))) && primaryDefectTarget) {
+            controls.target.set(primaryDefectTarget.x, 0, primaryDefectTarget.z);
+            camera.position.set(primaryDefectTarget.x + 28, 44, primaryDefectTarget.z + 36);
+            controls.update();
+          }
         });
       }
 
@@ -620,32 +635,181 @@
         });
       }
 
-      // --- 5. Explosion Engine: Isolated Feature Upper Layer & Stack Below Substrate ---
+      // --- 5. Defect 3D Text Billboard Sprite Generator ---
+      function createDefectTextSprite(mainText, subText) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 140;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        if (ctx.roundRect) {
+          ctx.roundRect(8, 8, 496, 124, 14);
+        } else {
+          ctx.rect(8, 8, 496, 124);
+        }
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#EF4444';
+        ctx.stroke();
+
+        ctx.fillStyle = '#EF4444';
+        ctx.font = 'bold 30px "Inter", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(mainText, 256, 52);
+
+        ctx.fillStyle = '#CBD5E1';
+        ctx.font = '22px "JetBrains Mono", monospace';
+        ctx.fillText(subText, 256, 96);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(28, 7.8, 1);
+        return sprite;
+      }
+
+      // --- 6. Standalone Defect Markers Engine (Halos, 3D Beacons, Labels & Wireframes) ---
+      let primaryDefectTarget = null;
+
+      function renderDefectMarkers() {
+        while (defectMarkersGroup.children.length > 0) defectMarkersGroup.remove(defectMarkersGroup.children[0]);
+        defectMarkersGroup.visible = highlightDefects;
+
+        const hudDefectPill = document.getElementById('hudDefectPill');
+        const hudDefectPillText = document.getElementById('hudDefectPillText');
+
+        if (!highlightDefects) {
+          if (hudDefectPill) hudDefectPill.style.display = 'none';
+          return;
+        }
+
+        let defectCount = 0;
+        let defectSummary = [];
+        primaryDefectTarget = null;
+
+        componentMeshes.forEach(mesh => {
+          const uData = mesh.userData;
+          if (isComponentDefect(uData)) {
+            defectCount++;
+            if (!primaryDefectTarget) {
+              primaryDefectTarget = { x: mesh.position.x, z: mesh.position.z, id: uData.id, status: uData.status };
+            }
+
+            let dName = uData.status || 'DEFECT';
+            if (uData.is_missing || uData.status === 'MISSING') {
+              dName = 'MISSING COMPONENT';
+            } else if (uData.tombstone_flag || uData.status === 'TOMBSTONE') {
+              dName = 'TOMBSTONE LIFT';
+            } else if (uData.tilt_flag || uData.status === 'TILT' || (uData.metro && Math.abs(uData.metro.rotation_deg || 0) > 3)) {
+              dName = `ROTATION SKEW (${(uData.metro?.rotation_deg || 18.5).toFixed(1)}°)`;
+            } else if (uData.status === 'REWORK') {
+              dName = 'PLACEMENT SHIFT';
+            }
+            defectSummary.push(`${uData.id} (${dName})`);
+
+            // 1. Pulsating Neon Red Defect Halo Ring on base board
+            const haloGeo = new THREE.RingGeometry(uData.compW * 0.6, uData.compW * 0.85, 32);
+            const haloMat = new THREE.MeshBasicMaterial({
+              color: 0xef4444,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.9
+            });
+            const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+            haloMesh.rotation.x = -Math.PI / 2;
+            haloMesh.position.set(mesh.position.x, (boardThickness / 2) + 0.35, mesh.position.z);
+            defectMarkersGroup.add(haloMesh);
+
+            // 2. 3D Pin Beacon (Inverted Glowing Cone pointing straight at defect)
+            const coneGeo = new THREE.ConeGeometry(2.0, 6.0, 16);
+            coneGeo.rotateX(Math.PI);
+            const coneMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+            const coneMesh = new THREE.Mesh(coneGeo, coneMat);
+            coneMesh.position.set(mesh.position.x, (boardThickness / 2) + 12.0, mesh.position.z);
+            defectMarkersGroup.add(coneMesh);
+
+            // Beacon Connecting Stem Line
+            const pinPoints = [
+              new THREE.Vector3(mesh.position.x, (boardThickness / 2) + 0.5, mesh.position.z),
+              new THREE.Vector3(mesh.position.x, (boardThickness / 2) + 9.0, mesh.position.z)
+            ];
+            const pinGeo = new THREE.BufferGeometry().setFromPoints(pinPoints);
+            const pinLine = new THREE.Line(pinGeo, new THREE.LineBasicMaterial({ color: 0xff2222 }));
+            defectMarkersGroup.add(pinLine);
+
+            // 3. 3D Floating Sprite Billboard Mentioning Defect Location & Type
+            const spriteLabel = createDefectTextSprite(
+              `⚠️ [${uData.id}] ${dName}`,
+              `Defect Area: X=${mesh.position.x.toFixed(1)}, Z=${mesh.position.z.toFixed(1)}`
+            );
+            spriteLabel.position.set(mesh.position.x, (boardThickness / 2) + 18.5, mesh.position.z);
+            defectMarkersGroup.add(spriteLabel);
+
+            // 4. Red Wireframe Bounding Box around defect footprint
+            const boxGeo = new THREE.BoxGeometry(uData.compW * 1.3, (uData.compH || 3.0) + 1.2, uData.compL * 1.3);
+            const boxMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+            const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+            boxMesh.position.set(mesh.position.x, (boardThickness / 2) + ((uData.compH || 3.0) + 1.2) / 2, mesh.position.z);
+            defectMarkersGroup.add(boxMesh);
+
+            // 5. If Explosion active, also duplicate to upper layer with laser guide
+            if (isExplodeActive) {
+              const liftY = explodeSeparation;
+              const upperHalo = haloMesh.clone();
+              upperHalo.position.y += liftY;
+              defectMarkersGroup.add(upperHalo);
+
+              const upperSprite = spriteLabel.clone();
+              upperSprite.position.y += liftY;
+              defectMarkersGroup.add(upperSprite);
+
+              const guidePoints = [
+                new THREE.Vector3(mesh.position.x, (boardThickness / 2) + 0.5, mesh.position.z),
+                new THREE.Vector3(mesh.position.x, (boardThickness / 2) + liftY + 5.0, mesh.position.z)
+              ];
+              const guideGeo = new THREE.BufferGeometry().setFromPoints(guidePoints);
+              const guideLine = new THREE.LineDashedMaterial({ color: 0xff2222, dashSize: 2, gapSize: 1.5, transparent: true, opacity: 0.85 });
+              const guideMesh = new THREE.Line(guideGeo, guideLine);
+              guideMesh.computeLineDistances();
+              defectMarkersGroup.add(guideMesh);
+            }
+          }
+        });
+
+        if (hudDefectPill && hudDefectPillText) {
+          if (defectCount > 0) {
+            hudDefectPill.style.display = 'flex';
+            hudDefectPillText.innerHTML = `<strong>DEFECT AREA PINPOINTED (${defectCount}):</strong> ${defectSummary.join(' | ')}`;
+          } else {
+            hudDefectPill.style.display = 'none';
+          }
+        }
+      }
+
+      // --- 7. Explosion Engine: Isolated Feature Upper Layer & Stack Below Substrate ---
       function renderExplosionLayers() {
         // Clear previous explosion meshes
         while (explodedGroup.children.length > 0) explodedGroup.remove(explodedGroup.children[0]);
         while (laserGuidesGroup.children.length > 0) laserGuidesGroup.remove(laserGuidesGroup.children[0]);
         while (belowSubstrateGroup.children.length > 0) belowSubstrateGroup.remove(belowSubstrateGroup.children[0]);
-        while (defectMarkersGroup.children.length > 0) defectMarkersGroup.remove(defectMarkersGroup.children[0]);
 
         if (!isExplodeActive) {
           explodedGroup.visible = false;
           laserGuidesGroup.visible = false;
           belowSubstrateGroup.visible = false;
-          defectMarkersGroup.visible = false;
+          renderDefectMarkers();
           return;
         }
 
         explodedGroup.visible = true;
         laserGuidesGroup.visible = true;
         belowSubstrateGroup.visible = (explodeFeatureType === 'ALL_STACK');
-        defectMarkersGroup.visible = highlightDefects;
 
         const liftY = explodeSeparation;
 
         if (explodeFeatureType === 'ALL_STACK') {
-          // --- MULTI-LAYER STACK (Layers Above & Below Substrate) ---
-
           // 1. Layer Below -1: Inner Copper Routing Traces (y = -liftY * 0.4)
           const copperGeo = new THREE.PlaneGeometry(boardWidth * 0.96, boardLength * 0.96);
           const copperMat = new THREE.MeshStandardMaterial({
@@ -689,7 +853,7 @@
           componentMeshes.forEach(mesh => {
             const uData = mesh.userData;
             const cCat = getComponentCategory(uData);
-            let layerLift = liftY * 0.5; // Solder/Fillet level
+            let layerLift = liftY * 0.5;
             if (cCat === 'PASSIVES' || cCat === 'CONNECTORS') layerLift = liftY * 0.9;
             else if (cCat === 'IC') layerLift = liftY * 1.4;
 
@@ -697,14 +861,11 @@
             elevatedClone.position.y = (uData.baseY || 1.5) + layerLift;
             explodedGroup.add(elevatedClone);
 
-            // Connecting Laser Guide Line
             drawLaserGuide(mesh.position.x, mesh.position.y, mesh.position.z, elevatedClone.position.y, 0x38bdf8);
           });
 
         } else {
-          // --- ISOLATED FEATURE EXPLOSION ---
-          // Lower complete board stays in place.
-          // Only components matching explodeFeatureType are elevated to liftY!
+          // Isolated feature explosion
           componentMeshes.forEach(mesh => {
             const uData = mesh.userData;
             const cCat = getComponentCategory(uData);
@@ -728,33 +889,7 @@
           });
         }
 
-        // Add Defect Halos and Markers if enabled
-        if (highlightDefects) {
-          componentMeshes.forEach(mesh => {
-            const uData = mesh.userData;
-            if (isComponentDefect(uData)) {
-              // Pulsating Neon Defect Halo on lower board
-              const haloGeo = new THREE.RingGeometry(uData.compW * 0.6, uData.compW * 0.75, 24);
-              const haloMat = new THREE.MeshBasicMaterial({
-                color: 0xef4444,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.85
-              });
-              const haloMesh = new THREE.Mesh(haloGeo, haloMat);
-              haloMesh.rotation.x = -Math.PI / 2;
-              haloMesh.position.set(mesh.position.x, (boardThickness / 2) + 0.35, mesh.position.z);
-              defectMarkersGroup.add(haloMesh);
-
-              // If exploded, also add halo to upper elevated component
-              if (isExplodeActive) {
-                const upperHalo = haloMesh.clone();
-                upperHalo.position.y += liftY;
-                defectMarkersGroup.add(upperHalo);
-              }
-            }
-          });
-        }
+        renderDefectMarkers();
       }
 
       function drawLaserGuide(x, baseY, z, targetY, hexColor) {
@@ -1115,6 +1250,9 @@
         if (!session && typeof getInspectraActiveSession === 'function') {
           session = await getInspectraActiveSession();
         }
+        if (!session && typeof getGlobalActiveBoard === 'function') {
+          session = await getGlobalActiveBoard();
+        }
         if (session && (session.pcb_id || session.serial_number)) {
           syncWithSession(session);
         } else if (targetPcbId) {
@@ -1125,11 +1263,12 @@
 
         if (focusDefect) {
           highlightDefects = true;
-          const chk = document.getElementById('chkHighlightDefects');
-          if (chk) chk.checked = true;
-          camera.position.set(50, 65, 80);
-          controls.target.set(0, 0, 0);
-          controls.update();
+          const toggleHighlightDefects = document.getElementById('toggleHighlightDefects');
+          if (toggleHighlightDefects) {
+            toggleHighlightDefects.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Defect Halo: ON';
+            toggleHighlightDefects.style.background = 'rgba(239, 68, 68, 0.18)';
+            toggleHighlightDefects.style.borderColor = '#EF4444';
+          }
         }
       }
       initStartupSession();
@@ -1172,9 +1311,11 @@
 
         // Pulsate defect halo opacity and scale gently
         if (highlightDefects && defectMarkersGroup.children.length > 0) {
-          const pulse = 0.75 + 0.25 * Math.sin(elapsedTime * 4.0);
+          const pulse = 0.70 + 0.30 * Math.sin(elapsedTime * 4.5);
           defectMarkersGroup.children.forEach(m => {
-            if (m.material) m.material.opacity = pulse;
+            if (m.isMesh && m.geometry && m.geometry.type === 'RingGeometry') {
+              if (m.material) m.material.opacity = pulse;
+            }
           });
         }
 

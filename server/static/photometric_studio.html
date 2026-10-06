@@ -511,6 +511,12 @@
       } else if (boardInfo.verdict === "PASS") {
         if (select) select.value = "U1_PIN1";
         loadStudioComponent("U1_PIN1");
+      } else {
+        // Any custom or defect board
+        const defComp = (boardInfo.defects && boardInfo.defects[0]?.component_id) || (boardInfo.components && boardInfo.components.find(c => c.status && c.status !== 'PASS')?.id) || 'C1';
+        const target = defComp.startsWith('U') ? 'U2_PIN4' : (defComp.startsWith('R') ? 'R1_PAD_R' : 'C1_PAD_L');
+        if (select) select.value = target;
+        loadStudioComponent(target);
       }
     }
 

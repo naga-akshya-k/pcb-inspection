@@ -29,10 +29,14 @@ class PCBVisualizer:
         img: np.ndarray,
         hi_results: dict,
         metrology_results: Optional[List[dict]] = None,
-        processing_ms: float = 0.0
+        processing_ms: float = 0.0,
+        include_chrome: bool = False
     ) -> np.ndarray:
         """
         Draws visual defect markers and quantitative metrology vectors.
+        By default (include_chrome=False), renders ONLY localized component detection
+        boxes and defect markers directly on the board, omitting intrusive top banners
+        and bottom legends.
         """
         overlay = img.copy()
         h, w = overlay.shape[:2]
@@ -42,33 +46,34 @@ class PCBVisualizer:
         components = hi_results.get("components", [])
         metrology_dict = {m["component_id"]: m for m in (metrology_results or []) if "component_id" in m}
 
-        # 1. Top Health Index Banner (Gradient Bar)
-        banner_h = 45
-        cv2.rectangle(overlay, (0, 0), (w, banner_h), (25, 25, 25), -1)
+        # Top Health Index & Verdict Banner (Rendered only if include_chrome=True)
+        if include_chrome:
+            banner_h = 45
+            cv2.rectangle(overlay, (0, 0), (w, banner_h), (25, 25, 25), -1)
 
-        # Draw HI Bar
-        bar_w = int((w - 400) * hi)
-        bar_color = (
-            int(255 * (1 - hi)),
-            int(200 * hi),
-            40
-        )
-        cv2.rectangle(overlay, (200, 10), (200 + bar_w, banner_h - 10), bar_color, -1)
-        cv2.rectangle(overlay, (200, 10), (w - 200, banner_h - 10), (150, 150, 150), 2)
-        cv2.putText(overlay, f"HEALTH INDEX: {hi:.3f}", (20, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            # Draw HI Bar
+            bar_w = int((w - 400) * hi)
+            bar_color = (
+                int(255 * (1 - hi)),
+                int(200 * hi),
+                40
+            )
+            cv2.rectangle(overlay, (200, 10), (200 + bar_w, banner_h - 10), bar_color, -1)
+            cv2.rectangle(overlay, (200, 10), (w - 200, banner_h - 10), (150, 150, 150), 2)
+            cv2.putText(overlay, f"HEALTH INDEX: {hi:.3f}", (20, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        # 2. IPC Verdict Badge (Top-Right)
-        if verdict == "PASS":
-            v_color = (0, 180, 0)
-        elif verdict == "REWORK":
-            v_color = (0, 140, 255)
-        else:
-            v_color = (0, 0, 220)
+            # IPC Verdict Badge (Top-Right)
+            if verdict == "PASS":
+                v_color = (0, 180, 0)
+            elif verdict == "REWORK":
+                v_color = (0, 140, 255)
+            else:
+                v_color = (0, 0, 220)
 
-        cv2.rectangle(overlay, (w - 180, 5), (w - 10, banner_h - 5), v_color, -1)
-        cv2.putText(overlay, verdict, (w - 160, 32),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.rectangle(overlay, (w - 180, 5), (w - 10, banner_h - 5), v_color, -1)
+            cv2.putText(overlay, verdict, (w - 160, 32),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
         # 3. Component ROI Annotation Markers & Metrology Vectors
         for comp in components:
@@ -144,29 +149,30 @@ class PCBVisualizer:
                 cv2.rectangle(overlay, (x, y + ch + 2), (x + len(cid)*9 + 8, y + ch + 18), (20, 20, 20), -1)
                 cv2.putText(overlay, cid, (x + 2, y + ch + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1)
 
-        # 4. Legend (Bottom-Right)
-        leg_w, leg_h = 245, 160
-        leg_x = max(10, w - leg_w - 10)
-        leg_y = max(10, h - leg_h - 10)
-        cv2.rectangle(overlay, (leg_x, leg_y), (leg_x + leg_w, leg_y + leg_h), (30, 30, 30), -1)
-        cv2.rectangle(overlay, (leg_x, leg_y), (leg_x + leg_w, leg_y + leg_h), (200, 200, 200), 1)
-        cv2.putText(overlay, "IPC-A-610 METROLOGY", (leg_x + 10, leg_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        if include_chrome:
+            # 4. Legend (Bottom-Right)
+            leg_w, leg_h = 245, 160
+            leg_x = max(10, w - leg_w - 10)
+            leg_y = max(10, h - leg_h - 10)
+            cv2.rectangle(overlay, (leg_x, leg_y), (leg_x + leg_w, leg_y + leg_h), (30, 30, 30), -1)
+            cv2.rectangle(overlay, (leg_x, leg_y), (leg_x + leg_w, leg_y + leg_h), (200, 200, 200), 1)
+            cv2.putText(overlay, "IPC-A-610 METROLOGY", (leg_x + 10, leg_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        legends = [
-            ("[Red Circle] Missing Component", self.COLOR_MISSING),
-            ("[Cyan Triangle] Height Anomaly", self.COLOR_HEIGHT),
-            ("[Yellow Diamond] Tombstone Defect", self.COLOR_TOMBSTONE),
-            ("[Purple Square] Tilt / Skew Anomaly", self.COLOR_TILT),
-            ("[Green Check] IPC-A-610 Pass", self.COLOR_PASS)
-        ]
-        for idx, (lbl, col) in enumerate(legends):
-            ly = leg_y + 42 + idx * 22
-            cv2.putText(overlay, lbl, (leg_x + 10, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.40, col, 1)
+            legends = [
+                ("[Red Circle] Missing Component", self.COLOR_MISSING),
+                ("[Cyan Triangle] Height Anomaly", self.COLOR_HEIGHT),
+                ("[Yellow Diamond] Tombstone Defect", self.COLOR_TOMBSTONE),
+                ("[Purple Square] Tilt / Skew Anomaly", self.COLOR_TILT),
+                ("[Green Check] IPC-A-610 Pass", self.COLOR_PASS)
+            ]
+            for idx, (lbl, col) in enumerate(legends):
+                ly = leg_y + 42 + idx * 22
+                cv2.putText(overlay, lbl, (leg_x + 10, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.40, col, 1)
 
-        # 5. Processing Time Tag (Bottom-Left)
-        cv2.rectangle(overlay, (10, h - 35), (230, h - 10), (20, 20, 20), -1)
-        cv2.putText(overlay, f"Inspection Latency: {processing_ms:.1f} ms", (18, h - 18),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
+            # 5. Processing Time Tag (Bottom-Left)
+            cv2.rectangle(overlay, (10, h - 35), (230, h - 10), (20, 20, 20), -1)
+            cv2.putText(overlay, f"Inspection Latency: {processing_ms:.1f} ms", (18, h - 18),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
 
         return overlay
 

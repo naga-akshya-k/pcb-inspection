@@ -1285,3 +1285,318 @@ code {
   .split-table-timeline-grid { grid-template-columns: 1fr; }
   .analytics-charts-grid { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   INSPECTRA COMMAND CENTER — 3-COLUMN INDUSTRIAL WORKSTATION
+   ========================================================================== */
+
+.command-center-layout {
+  display: grid;
+  grid-template-columns: 290px 1fr 340px;
+  gap: 16px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1440px) {
+  .command-center-layout {
+    grid-template-columns: 260px 1fr 320px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 1150px) {
+  .command-center-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cc-sidebar-left,
+.cc-viewport-center,
+.cc-sidebar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Card components inside sidebars */
+.cc-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.cc-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cc-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #F8FAFC;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+/* Station Controls Form */
+.cc-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cc-control-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cc-btn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-btn-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+/* Human Review Panel */
+.human-review-status {
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 12px;
+  letter-spacing: 0.03em;
+}
+
+.hr-status-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.hr-status-approved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.hr-status-rejected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.hr-status-rework {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.hr-status-escalated {
+  background: rgba(168, 85, 247, 0.15);
+  color: #C084FC;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.human-review-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-hr {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.btn-hr-accept {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+  border-color: #10B981;
+}
+.btn-hr-accept:hover, .btn-hr-accept.active {
+  background: #10B981;
+  color: #FFF;
+}
+
+.btn-hr-rework {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+  border-color: #F59E0B;
+}
+.btn-hr-rework:hover, .btn-hr-rework.active {
+  background: #F59E0B;
+  color: #FFF;
+}
+
+.btn-hr-reject {
+  background: rgba(239, 68, 68, 0.2);
+  color: #F87171;
+  border-color: #EF4444;
+}
+.btn-hr-reject:hover, .btn-hr-reject.active {
+  background: #EF4444;
+  color: #FFF;
+}
+
+.btn-hr-escalate {
+  background: rgba(168, 85, 247, 0.2);
+  color: #C084FC;
+  border-color: #A855F7;
+}
+.btn-hr-escalate:hover, .btn-hr-escalate.active {
+  background: #A855F7;
+  color: #FFF;
+}
+
+.hr-notes-input {
+  width: 100%;
+  background: #0B1120;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #F8FAFC;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  resize: vertical;
+  min-height: 60px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+.hr-notes-input:focus {
+  outline: none;
+  border-color: #6366F1;
+}
+
+/* Board History List */
+.board-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.board-history-item {
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.board-history-item:hover {
+  background: #1E293B;
+  border-color: #475569;
+  transform: translateX(2px);
+}
+
+.board-history-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366F1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+}
+
+.bhi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bhi-pcbid {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: #F8FAFC;
+}
+
+.bhi-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.bhi-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+/* Explainable AI Evidence Breakdown */
+.ai-evidence-box {
+  background: #0B1120;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aie-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.aie-label {
+  color: #94A3B8;
+}
+.aie-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: #E2E8F0;
+}
+

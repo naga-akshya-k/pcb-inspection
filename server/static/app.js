@@ -91,6 +91,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPrintPDF = document.getElementById('btnPrintPDF');
   const btnRefreshAuditLogs = document.getElementById('btnRefreshAuditLogs');
 
+  // Command Center PCB Session & Human Review Handles
+  const headerPcbId = document.getElementById('headerPcbId');
+  const sessionPcbBadge = document.getElementById('sessionPcbBadge');
+  const sessionPcbId = document.getElementById('sessionPcbId');
+  const sessionSerial = document.getElementById('sessionSerial');
+  const sessionBatch = document.getElementById('sessionBatch');
+  const sessionAiVerdict = document.getElementById('sessionAiVerdict');
+  const sessionFinalVerdict = document.getElementById('sessionFinalVerdict');
+  const explainConfidence = document.getElementById('explainConfidence');
+  const explainUncertainty = document.getElementById('explainUncertainty');
+  const explainRationale = document.getElementById('explainRationale');
+
+  const humanReviewStatusBadge = document.getElementById('humanReviewStatusBadge');
+  const btnHumanAccept = document.getElementById('btnHumanAccept');
+  const btnHumanRework = document.getElementById('btnHumanRework');
+  const btnHumanReject = document.getElementById('btnHumanReject');
+  const btnHumanEscalate = document.getElementById('btnHumanEscalate');
+  const humanReviewNotes = document.getElementById('humanReviewNotes');
+  const btnSubmitReview = document.getElementById('btnSubmitReview');
+
+  const boardHistoryList = document.getElementById('boardHistoryList');
+  const boardHistoryCountTag = document.getElementById('boardHistoryCountTag');
+
   // State Variables
   let currentInspectionData = null;
   let rawComponentsData = [];
@@ -596,6 +619,48 @@ document.addEventListener('DOMContentLoaded', () => {
     renderComponentTable(rawComponentsData);
     renderTimelineStream(verdict, latency, serial);
     updateCurrentBoardCharts(rawComponentsData, latency);
+
+    // Update Command Center Session & Explainable AI cards
+    const pcbId = data.pcb_id || (data.session ? data.session.pcb_id : null) || `PCB-${(serial || '000001').replace(/^TB/i, '00')}`;
+    const aiVerdictVal = data.ai_verdict || data.verdict || 'PASS';
+    const finalVerdictVal = data.final_verdict || aiVerdictVal;
+
+    if (headerPcbId) headerPcbId.textContent = pcbId;
+    if (sessionPcbId) sessionPcbId.textContent = pcbId;
+    if (sessionSerial) sessionSerial.textContent = serial || data.serial_number || 'AWAITING';
+    if (sessionBatch) sessionBatch.textContent = data.batch || 'LOT-2026-B1';
+
+    if (sessionAiVerdict) {
+      sessionAiVerdict.textContent = aiVerdictVal;
+      sessionAiVerdict.className = `aie-value ${aiVerdictVal === 'PASS' ? 'text-pass' : aiVerdictVal === 'REWORK' ? 'text-amber' : 'text-fail'}`;
+    }
+    if (sessionFinalVerdict) {
+      sessionFinalVerdict.textContent = finalVerdictVal;
+      sessionFinalVerdict.className = `aie-value ${finalVerdictVal === 'PASS' ? 'text-pass' : finalVerdictVal === 'REWORK' ? 'text-amber' : 'text-fail'}`;
+    }
+    if (sessionPcbBadge) {
+      sessionPcbBadge.textContent = finalVerdictVal;
+      sessionPcbBadge.className = `cc-badge ${finalVerdictVal === 'PASS' ? 'tag-pass' : finalVerdictVal === 'REWORK' ? 'tag-rework' : 'tag-fail'}`;
+    }
+
+    // Explainable AI Confidence & Uncertainty
+    const confVal = data.confidence_score ?? (avgSsim / 100);
+    const uncVal = data.uncertainty_score ?? Math.max(0.001, (1.0 - confVal) * 0.5);
+    if (explainConfidence) explainConfidence.textContent = `${(confVal * 100).toFixed(1)}%`;
+    if (explainUncertainty) explainUncertainty.textContent = uncVal.toFixed(4);
+    if (explainRationale) {
+      if (defCount === 0) {
+        explainRationale.textContent = `Model confidence exceeds Class 3 threshold (${(confVal * 100).toFixed(1)}%). Zero anomalous substrate contours detected.`;
+      } else {
+        explainRationale.textContent = `Flagged ${defCount} anomaly region(s). Tri-metric confidence dropped to ${(confVal * 100).toFixed(1)}%. Human review advised.`;
+      }
+    }
+
+    // Render Human Review State
+    renderHumanReviewState(data.human_review, finalVerdictVal);
+
+    // Refresh Board History
+    fetchBoardHistory();
   }
 
   // --- 12. Render IPC Metrology Table ---
@@ -1210,4 +1275,162 @@ document.addEventListener('DOMContentLoaded', () => {
       window.print();
     });
   }
+
+  // --- 22. Industry 5.0 Human Review Console ---
+  let selectedHumanDecision = null;
+  const hrButtons = [btnHumanAccept, btnHumanRework, btnHumanReject, btnHumanEscalate];
+
+  function setActiveHumanButton(activeBtn, decision) {
+    selectedHumanDecision = decision;
+    hrButtons.forEach(b => {
+      if (b) b.classList.remove('active');
+    });
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+
+  if (btnHumanAccept) btnHumanAccept.addEventListener('click', () => setActiveHumanButton(btnHumanAccept, 'PASS'));
+  if (btnHumanRework) btnHumanRework.addEventListener('click', () => setActiveHumanButton(btnHumanRework, 'REWORK'));
+  if (btnHumanReject) btnHumanReject.addEventListener('click', () => setActiveHumanButton(btnHumanReject, 'FAIL'));
+  if (btnHumanEscalate) btnHumanEscalate.addEventListener('click', () => setActiveHumanButton(btnHumanEscalate, 'ESCALATED'));
+
+  if (btnSubmitReview) {
+    btnSubmitReview.addEventListener('click', async () => {
+      if (!currentInspectionData || (!currentInspectionData.pcb_id && !currentInspectionData.session_id)) {
+        alert("Please run an inspection or select a PCB before submitting human review.");
+        return;
+      }
+      const pcbId = currentInspectionData.pcb_id || currentInspectionData.serial_number || currentInspectionData.board_serial;
+      const decision = selectedHumanDecision || currentInspectionData.ai_verdict || currentInspectionData.verdict || 'PASS';
+      const comments = humanReviewNotes ? humanReviewNotes.value.trim() : '';
+
+      btnSubmitReview.disabled = true;
+      btnSubmitReview.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Submitting Review...`;
+
+      try {
+        const updated = await submitInspectraHumanReview({
+          pcb_id: pcbId,
+          decision: decision,
+          operator: 'OP-4821 (Lead Tech)',
+          comments: comments
+        });
+        if (updated) {
+          currentInspectionData = updated;
+          renderHumanReviewState(updated.human_review, updated.final_verdict || decision);
+          if (sessionFinalVerdict) {
+            sessionFinalVerdict.textContent = updated.final_verdict || decision;
+            sessionFinalVerdict.className = `aie-value ${(updated.final_verdict === 'PASS') ? 'text-pass' : (updated.final_verdict === 'REWORK') ? 'text-amber' : 'text-fail'}`;
+          }
+          fetchBoardHistory();
+        }
+      } catch (err) {
+        alert("Error submitting human review: " + err.message);
+      } finally {
+        btnSubmitReview.disabled = false;
+        btnSubmitReview.innerHTML = `<i class="fa-solid fa-signature"></i> Sign & Submit Disposition`;
+      }
+    });
+  }
+
+  function renderHumanReviewState(hr, finalVerdict) {
+    if (!humanReviewStatusBadge) return;
+    if (hr && hr.status === 'REVIEWED') {
+      const isApproved = hr.decision === 'PASS';
+      const isRework = hr.decision === 'REWORK';
+      const isEscalated = hr.decision === 'ESCALATED';
+      humanReviewStatusBadge.className = `human-review-status ${isApproved ? 'hr-status-approved' : isRework ? 'hr-status-rework' : isEscalated ? 'hr-status-escalated' : 'hr-status-rejected'}`;
+      humanReviewStatusBadge.innerHTML = `<i class="fa-solid fa-user-check"></i> DISPOSITION: ${hr.decision} &bull; ${hr.operator || 'Operator'}`;
+      if (hr.comments && humanReviewNotes) humanReviewNotes.value = hr.comments;
+    } else {
+      humanReviewStatusBadge.className = 'human-review-status hr-status-pending';
+      humanReviewStatusBadge.innerHTML = `AWAITING OPERATOR REVIEW`;
+    }
+  }
+
+  // --- 23. Board History Panel ---
+  async function fetchBoardHistory() {
+    if (!boardHistoryList) return;
+    try {
+      const resp = await fetch('/api/sessions/history');
+      if (resp.ok) {
+        const history = await resp.json();
+        if (boardHistoryCountTag) boardHistoryCountTag.textContent = `${history.length} Boards`;
+        if (history.length === 0) {
+          boardHistoryList.innerHTML = `<div style="font-size: 12px; color: #64748B; text-align: center; padding: 20px;">No prior boards in memory.</div>`;
+          return;
+        }
+
+        const activeId = currentInspectionData ? (currentInspectionData.pcb_id || currentInspectionData.serial_number) : null;
+
+        boardHistoryList.innerHTML = history.map(item => {
+          const v = item.final_verdict || item.ai_verdict || 'PASS';
+          let badgeClass = 'tag-pass';
+          if (v === 'REWORK') badgeClass = 'tag-rework';
+          else if (v === 'FAIL') badgeClass = 'tag-fail';
+
+          const isActive = (item.pcb_id === activeId || item.serial_number === activeId);
+          const tStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : 'Recent';
+          const defCount = item.defects ? item.defects.length : 0;
+
+          return `
+            <div class="board-history-item ${isActive ? 'active' : ''}" onclick="window.inspectraSelectBoard('${item.pcb_id}')">
+              <div class="bhi-top">
+                <span class="bhi-pcbid">${item.pcb_id}</span>
+                <span class="bhi-badge ${badgeClass}">${v}</span>
+              </div>
+              <div class="bhi-bottom">
+                <span>SN: ${item.serial_number}</span>
+                <span>${tStr} &bull; ${defCount} def</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    } catch (err) {
+      console.warn("fetchBoardHistory error:", err);
+    }
+  }
+
+  window.inspectraSelectBoard = async function(pcbId) {
+    if (typeof selectInspectraBoard === 'function') {
+      const session = await selectInspectraBoard(pcbId);
+      if (session) {
+        currentInspectionData = session;
+        const sName = session.serial_number || session.pcb_id;
+        if (session.image_url) imgTestInput.src = session.image_url;
+        renderDashboard(session, sName);
+      }
+    }
+  };
+
+  // --- 24. Cross-Tab Dynamic Real-Time Sync & Initialization ---
+  if (typeof onInspectraSessionChange === 'function') {
+    onInspectraSessionChange((sessionData) => {
+      if (sessionData && (sessionData.pcb_id || sessionData.serial_number)) {
+        currentInspectionData = sessionData;
+        const sName = sessionData.serial_number || sessionData.pcb_id;
+        if (sessionData.image_url) imgTestInput.src = sessionData.image_url;
+        renderDashboard(sessionData, sName);
+        fetchCFXTelemetry();
+      }
+    });
+  }
+
+  async function initSessionFromEnvironment() {
+    const targetPcbId = typeof getUrlPcbId === 'function' ? getUrlPcbId() : null;
+    let initialSession = null;
+    if (targetPcbId && typeof getInspectraSession === 'function') {
+      initialSession = await getInspectraSession(targetPcbId);
+    }
+    if (!initialSession && typeof getInspectraActiveSession === 'function') {
+      initialSession = await getInspectraActiveSession();
+    }
+    if (initialSession && (initialSession.pcb_id || initialSession.serial_number)) {
+      currentInspectionData = initialSession;
+      const sName = initialSession.serial_number || initialSession.pcb_id;
+      if (initialSession.image_url) imgTestInput.src = initialSession.image_url;
+      renderDashboard(initialSession, sName);
+    }
+    fetchBoardHistory();
+  }
+  initSessionFromEnvironment();
 });

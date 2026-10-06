@@ -47,3 +47,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `POST /api/session/human-review`: Records operator review decision, comments, and AI verdict override.
 - **Automated Test Suite**:
   - Added `tests/test_inspection_session.py` (3 new tests); total test suite expanded to 47 passing tests.
+
+---
+
+## [0.3.0-command-center] - 2026-10-06
+### Added
+- **Industrial Command Center Layout** (`server/static/index.html` & `server/static/styles.css`):
+  - 3-column dark industrial AOI workstation layout:
+    - **Left Column**: Station workflow controls (Scenario select, Live capture, Upload board, Upload master ref, Set golden master, Ingest CAD .csv), viewport overlay layer toggles (Bounds, Labels, Metrology, 3D Depth), and real-time event stream timeline.
+    - **Center Column**: Inspection hero verdict card with radial health index gauge, quick stats, 8 Enterprise KPI widgets, triple-view inspection workspace (Master ref, Current board, Metrology overlay), and searchable/filterable component quality table.
+    - **Right Column**: Active PCB session context, Explainable AI evidence breakdown (tri-metric confidence, uncertainty score, model rationale), Industry 5.0 Human Review console, flagged process exceptions, and board history panel.
+  - Top header telemetry expanded with active PCB ID context (`ACTIVE PCB: PCB-001248`).
+- **Industry 5.0 Human-in-the-Loop Review Console**:
+  - Adjudication action controls: Accept/Confirm, Route to Rework, Quarantine/Reject, Escalate to Lead.
+  - Operator rationale and engineering notes input with cryptographic operator attribution (`OP-4821`).
+  - Seamless submission to `/api/session/human-review` with dynamic final verdict updates.
+- **Board History & Instant Recall**:
+  - Live historical board list fetching from `/api/sessions/history`.
+  - Click-to-load functionality invoking `selectInspectraBoard(pcb_id)`, instantaneously updating the active session across all open browser tabs simultaneously via SSE and `BroadcastChannel`.

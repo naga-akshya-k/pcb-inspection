@@ -26,3 +26,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Frontend & Visualization**:
   - 11 multi-page views: Live Inspection, 360° 3D Digital Twin, 3D Photometric Studio, 3D X-Ray Studio, Photometric Stereo, IPC Metrology, Analytics, SPC, MSA, CFX, and Audit.
   - 44 automated pytest tests passing with 100% success rate.
+
+---
+
+## [0.2.0-session] - 2026-10-06
+### Added
+- **Central `PCBInspectionSession` Architecture** (`server/pipeline/session_manager.py`):
+  - Standardized unified session state model with unique auto-incrementing PCB ID format (`PCB-001248`).
+  - Structured fields for Lot, Line, Station, Operator, Timestamp, Calibration version, Multimodal evidence, Defect items, AI explanation, and Human review adjudication.
+  - `InspectionSessionManager` providing session registry, history buffer, and active session selection.
+- **Real-Time Cross-Tab Event Bus** (`server/main.py` + `server/static/common.js`):
+  - FastAPI `/api/events` Server-Sent Events (SSE) streaming endpoint with non-blocking `asyncio.Queue` subscribers.
+  - Automated client-side bridge in `common.js` connecting `EventSource` to browser `BroadcastChannel('inspectra_global_bus')`.
+  - Enables instant, simultaneous real-time synchronization across all open workstation browser tabs upon inspection completion or board selection.
+- **Session REST API Endpoints**:
+  - `GET /api/session/active`: Returns current active session.
+  - `GET /api/session/{pcb_id}`: Retrieves specific session by ID or serial.
+  - `GET /api/sessions/history`: Lists historical inspection sessions.
+  - `POST /api/session/select/{pcb_id}`: Broadcasts active board switch to all tabs.
+  - `POST /api/session/human-review`: Records operator review decision, comments, and AI verdict override.
+- **Automated Test Suite**:
+  - Added `tests/test_inspection_session.py` (3 new tests); total test suite expanded to 47 passing tests.

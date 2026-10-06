@@ -135,3 +135,156 @@ function onGlobalActiveBoardChange(callback) {
     if (event.detail) callback(event.detail);
   });
 }
+
+/* ==========================================================================
+   INSPECTRA REAL-TIME SERVER-SENT EVENTS (SSE) & SESSION CLIENT
+   Dynamically synchronizes all open browser tabs simultaneously in real time.
+   ========================================================================== */
+
+const INSPECTRA_BUS_CHANNEL = 'inspectra_global_bus';
+let inspectraBroadcast = null;
+try {
+  inspectraBroadcast = new BroadcastChannel(INSPECTRA_BUS_CHANNEL);
+} catch (e) {
+  console.warn("BroadcastChannel not supported", e);
+}
+
+// Global SSE connection
+let inspectraEventSource = null;
+function initInspectraSSE() {
+  if (inspectraEventSource) return;
+  try {
+    inspectraEventSource = new EventSource('/api/events');
+
+    function handleRemoteEvent(evt) {
+      try {
+        const sessionData = JSON.parse(evt.data);
+        if (sessionData && (sessionData.pcb_id || sessionData.serial_number)) {
+          // Sync with local active board state
+          setGlobalActiveBoard({
+            board_id: sessionData.serial_number,
+            serial: sessionData.serial_number,
+            pcb_id: sessionData.pcb_id,
+            verdict: sessionData.final_verdict || sessionData.ai_verdict,
+            defective_components: sessionData.defective_components,
+            image_url: sessionData.image_url,
+            overlay_b64: sessionData.overlay_image_b64,
+            depth_heatmap_b64: sessionData.depth_heatmap_b64,
+            components: sessionData.components,
+            metrology: sessionData.metrology,
+            defects: sessionData.defects,
+            session: sessionData
+          });
+
+          // Dispatch session specific event
+          if (inspectraBroadcast) {
+            inspectraBroadcast.postMessage({ type: 'INSPECTRA_SESSION_SYNC', session: sessionData });
+          }
+          window.dispatchEvent(new CustomEvent('inspectra_session_changed', { detail: sessionData }));
+        }
+      } catch (err) {
+        console.warn("Error parsing SSE event data", err);
+      }
+    }
+
+    inspectraEventSource.addEventListener('initial_state', handleRemoteEvent);
+    inspectraEventSource.addEventListener('inspection_completed', handleRemoteEvent);
+    inspectraEventSource.addEventListener('board_selected', handleRemoteEvent);
+    inspectraEventSource.addEventListener('human_review_updated', handleRemoteEvent);
+
+    inspectraEventSource.onerror = () => {
+      // Reconnection handled automatically by browser EventSource
+    };
+  } catch (err) {
+    console.warn("Failed to initialize SSE EventSource", err);
+  }
+}
+
+// Initialize SSE on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInspectraSSE);
+} else {
+  initInspectraSSE();
+}
+
+// Function to fetch active inspection session
+async function getInspectraActiveSession() {
+  try {
+    const res = await fetch('/api/session/active');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("getInspectraActiveSession error", err);
+  }
+  return null;
+}
+
+// Function to fetch specific session by pcb_id or serial
+async function getInspectraSession(pcbId) {
+  try {
+    const res = await fetch(`/api/session/${encodeURIComponent(pcbId)}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("getInspectraSession error", err);
+  }
+  return null;
+}
+
+// Function to select active board and notify all tabs
+async function selectInspectraBoard(pcbId) {
+  try {
+    const res = await fetch(`/api/session/select/${encodeURIComponent(pcbId)}`, { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      return data.active_session;
+    }
+  } catch (err) {
+    console.warn("selectInspectraBoard error", err);
+  }
+  return null;
+}
+
+// Function to submit operator human review / override
+async function submitInspectraHumanReview(payload) {
+  try {
+    const res = await fetch('/api/session/human-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.session;
+    }
+  } catch (err) {
+    console.warn("submitInspectraHumanReview error", err);
+  }
+  return null;
+}
+
+// Function to subscribe to dynamic session changes across tabs
+function onInspectraSessionChange(callback) {
+  if (typeof callback !== 'function') return;
+
+  if (inspectraBroadcast) {
+    inspectraBroadcast.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'INSPECTRA_SESSION_SYNC') {
+        callback(event.data.session);
+      }
+    });
+  }
+
+  window.addEventListener('inspectra_session_changed', (event) => {
+    if (event.detail) callback(event.detail);
+  });
+}
+
+// Helper to check URL query parameters for pcb_id
+function getUrlPcbId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('pcb_id') || params.get('board_id') || params.get('serial');
+}
+

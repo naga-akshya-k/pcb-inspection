@@ -65,3 +65,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Board History & Instant Recall**:
   - Live historical board list fetching from `/api/sessions/history`.
   - Click-to-load functionality invoking `selectInspectraBoard(pcb_id)`, instantaneously updating the active session across all open browser tabs simultaneously via SSE and `BroadcastChannel`.
+
+---
+
+## [0.4.0-digital-twin] - 2026-10-06
+### Added
+- **3D Digital Twin PCB Session Synchronization** (`server/static/3d_view.html`):
+  - Directly binds to active `PCBInspectionSession` via `getUrlPcbId()`, `getInspectraSession()`, and `getInspectraActiveSession()`.
+  - Subscribes to `onInspectraSessionChange`, updating dynamically in real time when any other tab triggers an inspection or selects a historical board.
+  - Active PCB context telemetry displayed in top bar (`ACTIVE PCB: PCB-001248`).
+- **Isolated Feature Explosion & Multi-Layer Substrate Stack**:
+  - Lower base layer retains complete assembled PCB with all components intact at $Y = 0$.
+  - Upper isolated layer elevates only chosen feature category:
+    - `IC Chips & Controllers Alone`
+    - `Solder Joints & Fillets Alone`
+    - `Passives (Capacitors & Resistors)`
+    - `Connectors & Pin Headers`
+    - `Defect & Exception Areas Only`
+  - Vertical laser projection dashed alignment guides connect lower component centroids to upper elevated components.
+  - Multi-Layer Stack mode unpacks internal routing traces, bottom solder mask, and BGA contact pads below the substrate ($-Y$).
+  - Pulsating neon-red defect halos pinpoint anomalies and missing components across both lower and upper layers.

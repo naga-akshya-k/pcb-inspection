@@ -85,3 +85,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Vertical laser projection dashed alignment guides connect lower component centroids to upper elevated components.
   - Multi-Layer Stack mode unpacks internal routing traces, bottom solder mask, and BGA contact pads below the substrate ($-Y$).
   - Pulsating neon-red defect halos pinpoint anomalies and missing components across both lower and upper layers.
+
+---
+
+## [0.5.0-xray] - 2026-10-06
+### Added
+- **Honest Industrial Simulation Labeling** (`server/static/xray_studio.html`):
+  - Prominent amber watermark badge: `ALGORITHMIC AXI SIMULATION • Beer-Lambert Attenuation`, clearly communicating physics-based radiograph modeling.
+- **Cross-Page PCB Session & Component Deep-Linking**:
+  - Top header telemetry bound to active PCB session (`ACTIVE PCB: PCB-001248`).
+  - Supports deep-linking queries (e.g. `/xray-studio?pcb_id=PCB-001248&component=U5`), automatically highlighting and focusing targeted components and defect cards in 3D.
+  - Real-time cross-tab synchronization listening to `onInspectraSessionChange`.
+- **Isolated Feature Explosion & Multi-Layer Radiographic Slicing**:
+  - Lower complete board remains fully visible on the substrate at $Y = 0$.
+  - Upper isolated feature layer selectively elevates:
+    - Solder joints & BGA balls alone
+    - IC chips & silicon die alone
+    - Copper traces & conductors
+    - Passive components
+    - Defect / anomaly regions alone
+  - Vertical laser alignment guide lines connect base coordinates with elevated radiographic features.
+  - Multi-Layer Stack mode renders internal copper routing and bottom solder mask below the board substrate ($-Y$).

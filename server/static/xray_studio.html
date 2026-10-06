@@ -413,11 +413,17 @@
       </div>
     </div>
     <div class="telemetry-panel">
-      <div class="telem-item">
+      <div class="telem-item" style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 14px;">
         <div class="telem-dot active" style="background: #38bdf8; box-shadow: 0 0 10px #38bdf8;"></div>
         <div class="telem-info">
           <span class="telem-label">AXI DETECTOR</span>
           <span class="telem-val" style="color: #38bdf8;" id="telemDetector">160kV / 0.8µm FOCAL SPOT</span>
+        </div>
+      </div>
+      <div class="telem-item">
+        <div class="telem-info">
+          <span class="telem-label">ACTIVE PCB CONTEXT</span>
+          <span class="telem-val" style="color: #60A5FA; font-family: var(--font-mono);" id="headerPcbId">NONE (READY)</span>
         </div>
       </div>
     </div>
@@ -444,6 +450,11 @@
     <!-- 3D X-Ray Viewport Container -->
     <div class="viewport-3d-container">
       <canvas id="webglCanvas"></canvas>
+
+      <!-- Honest Industrial Label Watermark (Engineering Integrity) -->
+      <div style="position: absolute; top: 14px; right: 260px; background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #FBBF24; z-index: 20; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(8px);">
+        <i class="fa-solid fa-atom"></i> ALGORITHMIC AXI SIMULATION &bull; Beer-Lambert Attenuation
+      </div>
 
       <!-- Floating CAD Zoom & Precision Inspection Widget -->
       <div class="zoom-floating-widget">
@@ -630,6 +641,19 @@
 
         <div style="display: flex; align-items: center; gap: 14px;">
           <div style="display: flex; align-items: center; gap: 6px;">
+            <label style="font-size: 11px; color: #cbd5e1; font-weight: 600;"><i class="fa-solid fa-layer-group"></i> Upper Layer:</label>
+            <select id="xrayExplodeFeatureSelect" class="ind-select" style="padding: 4px 8px; font-size: 11px; background: #0f172a; color: #38bdf8; border: 1px solid #334155; border-radius: 4px;" onchange="updateExplodedStack(document.getElementById('explodedSlider').value)">
+              <option value="ALL" selected>All Structures (Full Radiograph)</option>
+              <option value="SOLDER">Solder Joints & BGA Balls Alone</option>
+              <option value="CHIPS">IC Chips & Silicon Die Alone</option>
+              <option value="TRACES">Copper Traces & Conductors</option>
+              <option value="PASSIVES">Passive Resistors & Capacitors</option>
+              <option value="DEFECTS">Defect / Anomaly Areas Alone</option>
+              <option value="STACK">Multi-Layer Stack (Below Substrate)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
             <label style="font-size: 11px; color: #cbd5e1; font-weight: 600;"><i class="fa-solid fa-bars"></i> Exploded:</label>
             <input type="range" id="explodedSlider" min="0" max="30" value="0" step="1" class="hud-slider" style="width: 60px;" oninput="updateExplodedStack(this.value)">
           </div>
@@ -649,9 +673,14 @@
   <script>
     let scene, camera, renderer, controls, raycaster, mouse;
     let pcbSubstrateMesh = null, topRadiographMesh = null, innerCopperMesh = null, bottomLayerMesh = null;
+    let baseRadiographMesh = null;
     let cornerRings = [];
     let anomalyMarkersGroup = new THREE.Group();
     let pulsingBeacons = [];
+
+    // Isolated Feature Explosion & Stack Groups
+    let xrayLaserGuidesGroup = new THREE.Group();
+    let belowSubstrateXrayGroup = new THREE.Group();
 
     // 360° Board-Alone Rotation & Surface Separation
     let boardGroup = new THREE.Group();
@@ -1040,7 +1069,23 @@
 
       const planeGeo = new THREE.PlaneGeometry(boardW, boardL);
 
-      // Top Subsurface Radiograph Layer
+      // Lower Complete Board Base Plane (Always intact at y = 0 for spatial reference)
+      if (baseRadiographMesh) boardGroup.remove(baseRadiographMesh);
+      const baseMat = new THREE.MeshBasicMaterial({
+        map: radiographTex,
+        transparent: true,
+        opacity: 0.95,
+        side: THREE.DoubleSide
+      });
+      baseRadiographMesh = new THREE.Mesh(planeGeo, baseMat);
+      baseRadiographMesh.rotation.x = -Math.PI / 2;
+      baseRadiographMesh.position.y = boardT / 2 + 0.02;
+      boardGroup.add(baseRadiographMesh);
+
+      boardGroup.add(xrayLaserGuidesGroup);
+      boardGroup.add(belowSubstrateXrayGroup);
+
+      // Upper Subsurface Radiograph Layer (Elevates during explosion)
       const topMat = new THREE.MeshBasicMaterial({
         map: radiographTex,
         transparent: true,
@@ -1354,19 +1399,47 @@
         DEFECT_DATABASE[activeBoardId] = [dynamicDefect];
         buildDefectOverlayAndBadges();
       }
+
+      const headerPcbId = document.getElementById("headerPcbId");
+      if (headerPcbId) headerPcbId.textContent = boardInfo.pcb_id || boardInfo.serial || bId;
+
       setCameraView("isometric");
     }
 
-    if (typeof getGlobalActiveBoard === 'function') {
-      getGlobalActiveBoard().then(active => {
-        if (active && (active.board_id || active.serial)) {
-          syncActiveBoard(active);
-        }
-      });
-    }
+    async function initXRaySession() {
+      const urlPcbId = typeof getUrlPcbId === 'function' ? getUrlPcbId() : null;
+      const params = new URLSearchParams(window.location.search);
+      const urlComponent = params.get('component');
 
-    if (typeof onGlobalActiveBoardChange === 'function') {
-      onGlobalActiveBoardChange(syncActiveBoard);
+      let session = null;
+      if (urlPcbId && typeof getInspectraSession === 'function') {
+        session = await getInspectraSession(urlPcbId);
+      }
+      if (!session && typeof getInspectraActiveSession === 'function') {
+        session = await getInspectraActiveSession();
+      }
+
+      if (session) {
+        syncActiveBoard(session);
+      } else if (typeof getGlobalActiveBoard === 'function') {
+        const active = await getGlobalActiveBoard();
+        if (active) syncActiveBoard(active);
+      }
+
+      if (urlComponent) {
+        setTimeout(() => {
+          const defects = DEFECT_DATABASE[activeBoardId] || [];
+          const found = defects.find(d => (d.id && d.id.includes(urlComponent)) || (d.component && d.component.includes(urlComponent)));
+          if (found) focusDefect(found);
+        }, 500);
+      }
+    }
+    initXRaySession();
+
+    if (typeof onInspectraSessionChange === 'function') {
+      onInspectraSessionChange((sessionData) => {
+        if (sessionData) syncActiveBoard(sessionData);
+      });
     }
 
     async function handleDirectImageUpload(e) {
@@ -1399,9 +1472,73 @@
     }
 
     function updateExplodedStack(val) {
-      const sep = parseFloat(val) * 0.4;
-      if (topRadiographMesh) topRadiographMesh.position.y = (boardT / 2 + 0.05) + sep * 1.5;
-      if (innerCopperMesh) innerCopperMesh.position.y = 0;
+      const sep = parseFloat(val) * 0.5;
+      const featSelect = document.getElementById("xrayExplodeFeatureSelect");
+      const feat = featSelect ? featSelect.value : "ALL";
+
+      while (xrayLaserGuidesGroup.children.length > 0) xrayLaserGuidesGroup.remove(xrayLaserGuidesGroup.children[0]);
+      while (belowSubstrateXrayGroup.children.length > 0) belowSubstrateXrayGroup.remove(belowSubstrateXrayGroup.children[0]);
+
+      if (sep <= 0.1) {
+        if (topRadiographMesh) {
+          topRadiographMesh.position.y = boardT / 2 + 0.05;
+          topRadiographMesh.visible = false;
+        }
+        if (innerCopperMesh) innerCopperMesh.position.y = 0;
+        cornerRings.forEach(r => r.position.y = boardT / 2 + 0.08);
+        anomalyMarkersGroup.position.y = 0;
+        return;
+      }
+
+      if (topRadiographMesh) {
+        topRadiographMesh.visible = true;
+        topRadiographMesh.position.y = (boardT / 2 + 0.05) + sep * 1.5;
+
+        // Switch upper layer texture according to selected feature
+        if (feat === "SOLDER") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_solder.png');
+        } else if (feat === "CHIPS") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_chips.png');
+        } else if (feat === "TRACES") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_traces.png');
+        } else if (feat === "PASSIVES") {
+          topRadiographMesh.material.map = textureLoader.load('/static/boards/mat_passives.png');
+        } else {
+          topRadiographMesh.material.map = textureLoader.load(getActiveRadiographUrl());
+        }
+        topRadiographMesh.material.needsUpdate = true;
+      }
+
+      if (feat === "STACK") {
+        const planeGeo = new THREE.PlaneGeometry(boardW, boardL);
+        const botTracesMat = new THREE.MeshBasicMaterial({ color: 0xd97706, wireframe: true, side: THREE.DoubleSide });
+        const botTracesMesh = new THREE.Mesh(planeGeo, botTracesMat);
+        botTracesMesh.rotation.x = -Math.PI / 2;
+        botTracesMesh.position.y = -sep * 0.8;
+        belowSubstrateXrayGroup.add(botTracesMesh);
+
+        const botMaskMat = new THREE.MeshBasicMaterial({ color: 0x064e3b, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        const botMaskMesh = new THREE.Mesh(planeGeo, botMaskMat);
+        botMaskMesh.rotation.x = -Math.PI / 2;
+        botMaskMesh.position.y = -sep * 1.4;
+        belowSubstrateXrayGroup.add(botMaskMesh);
+      }
+
+      // Laser guide lines between lower complete board and upper isolated feature
+      const guidePoints = [
+        [-43, -43], [43, -43], [-43, 43], [43, 43], [0, 0]
+      ];
+      guidePoints.forEach(pt => {
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pt[0], boardT / 2 + 0.05, pt[1]),
+          new THREE.Vector3(pt[0], (boardT / 2 + 0.05) + sep * 1.5, pt[1])
+        ]);
+        const lineMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 1.5, gapSize: 1.0, transparent: true, opacity: 0.7 });
+        const line = new THREE.Line(lineGeo, lineMat);
+        line.computeLineDistances();
+        xrayLaserGuidesGroup.add(line);
+      });
+
       cornerRings.forEach(r => r.position.y = (boardT / 2 + 0.08) + sep * 1.5);
       anomalyMarkersGroup.position.y = sep * 1.5;
     }

@@ -308,13 +308,6 @@ async def sse_events(request: Request):
     )
 
 
-@app.get("/")
-async def serve_index():
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "Advanced PCB AI Inspection Server Running."}
-
 @app.get("/download-zip")
 @app.get("/api/download-suite")
 async def download_complete_suite():
@@ -890,33 +883,33 @@ def get_audit_logs():
     return logs
 
 # Multi-Page Route Handlers
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 def page_inspection():
-    return os.path.join(STATIC_DIR, "index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/metrology", response_class=FileResponse)
+@app.get("/metrology")
 def page_metrology():
-    return os.path.join(STATIC_DIR, "metrology.html")
+    return FileResponse(os.path.join(STATIC_DIR, "metrology.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/analytics", response_class=FileResponse)
+@app.get("/analytics")
 def page_analytics():
-    return os.path.join(STATIC_DIR, "analytics.html")
+    return FileResponse(os.path.join(STATIC_DIR, "analytics.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/spc", response_class=FileResponse)
+@app.get("/spc")
 def page_spc():
-    return os.path.join(STATIC_DIR, "spc.html")
+    return FileResponse(os.path.join(STATIC_DIR, "spc.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/msa", response_class=FileResponse)
+@app.get("/msa")
 def page_msa():
-    return os.path.join(STATIC_DIR, "msa.html")
+    return FileResponse(os.path.join(STATIC_DIR, "msa.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/cfx", response_class=FileResponse)
+@app.get("/cfx")
 def page_cfx():
-    return os.path.join(STATIC_DIR, "cfx.html")
+    return FileResponse(os.path.join(STATIC_DIR, "cfx.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
-@app.get("/audit", response_class=FileResponse)
+@app.get("/audit")
 def page_audit():
-    return os.path.join(STATIC_DIR, "audit.html")
+    return FileResponse(os.path.join(STATIC_DIR, "audit.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 @app.get("/3d-view")
 def page_3d_view():

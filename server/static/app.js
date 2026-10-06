@@ -1404,31 +1404,61 @@ document.addEventListener('DOMContentLoaded', () => {
           const defCount = item.defects ? item.defects.length : (item.defective_components ?? 0);
           const imgSrc = item.image_url || `/evaluation/test_boards/${item.serial_number || 'TB005'}.png`;
 
-          // Small red indicator overlay boxes on FAIL card thumbnails
+          // Small red indicator overlay boxes on DEFECT card thumbnails
           const defectOverlay = !isPass ? `
             <div class="xis-thumb-defect-box" style="top: 25%; left: 35%; width: 28px; height: 22px;"></div>
             <div class="xis-thumb-defect-box" style="top: 60%; left: 60%; width: 22px; height: 18px;"></div>
           ` : '';
 
-          return `
-            <div class="xis-result-thumb-card ${borderClass} ${isActive ? 'active' : ''}" onclick="window.inspectraSelectBoard('${item.pcb_id}')">
-              <div style="position: relative; overflow: hidden; border-radius: 4px; background: #03060d;">
-                <img src="${imgSrc}" alt="${item.serial_number}" onerror="this.src='/static/placeholder.png';">
-                ${defectOverlay}
-                <span class="cc-badge ${isPass ? 'tag-pass' : 'tag-fail'}" style="position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; padding: 2px 6px;">
-                  ${v}
-                </span>
+          if (isPass) {
+            // SAFE BOARD: Green border & highlight, clicking selects in current workbench
+            return `
+              <div class="xis-result-thumb-card pass ${isActive ? 'active' : ''}" 
+                   onclick="window.inspectraSelectSafeBoard('${item.pcb_id}')"
+                   title="Safe Board (PASS) - Click to inspect in Workbench">
+                <div style="position: relative; overflow: hidden; border-radius: 4px; background: #03060d;">
+                  <img src="${imgSrc}" alt="${item.serial_number}" onerror="this.src='/static/placeholder.png';">
+                  <span class="cc-badge tag-pass" style="position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; padding: 2px 8px; box-shadow: 0 0 10px rgba(16,185,129,0.6);">
+                    <i class="fa-solid fa-circle-check"></i> SAFE (PASS)
+                  </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px;">
+                  <strong style="color: #f8fafc; font-family: var(--font-mono);">${item.pcb_id}</strong>
+                  <span style="color: #94a3b8; font-size: 11px;">SN: ${item.serial_number}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 2px;">
+                  <span>${tStr}</span>
+                  <span style="color: #10b981; font-weight: 700;"><i class="fa-solid fa-shield-check"></i> 0 Defects (Safe)</span>
+                </div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px;">
-                <strong style="color: #f8fafc; font-family: var(--font-mono);">${item.pcb_id}</strong>
-                <span style="color: #94a3b8; font-size: 11px;">SN: ${item.serial_number}</span>
+            `;
+          } else {
+            // DEFECT BOARD: Red border & highlight, clicking immediately opens into 3D Digital Twin!
+            return `
+              <div class="xis-result-thumb-card fail ${isActive ? 'active' : ''}" 
+                   onclick="window.inspectraOpenDefectIn3D('${item.pcb_id}', '${item.serial_number}')"
+                   title="Defect Board (FAIL) - Click to Open in 3D Digital Twin">
+                <div style="position: relative; overflow: hidden; border-radius: 4px; background: #03060d;">
+                  <img src="${imgSrc}" alt="${item.serial_number}" onerror="this.src='/static/placeholder.png';">
+                  ${defectOverlay}
+                  <span class="cc-badge tag-fail" style="position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; padding: 2px 8px; box-shadow: 0 0 10px rgba(239,68,68,0.7);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> DEFECT (${defCount})
+                  </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px;">
+                  <strong style="color: #fca5a5; font-family: var(--font-mono);">${item.pcb_id}</strong>
+                  <span style="color: #f87171; font-size: 11px; font-weight: 700;">SN: ${item.serial_number}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-top: 2px;">
+                  <span>${tStr}</span>
+                  <span style="color: #ef4444; font-weight: 700;">${defCount} Defect${defCount === 1 ? '' : 's'}</span>
+                </div>
+                <div class="btn-defect-digital-twin">
+                  <i class="fa-solid fa-cube"></i> Open in 3D Digital Twin ➔
+                </div>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 2px;">
-                <span>${tStr}</span>
-                <span style="color: ${isPass ? '#10b981' : '#ef4444'}; font-weight: 600;">${defCount} defect${defCount === 1 ? '' : 's'}</span>
-              </div>
-            </div>
-          `;
+            `;
+          }
         }).join('');
       }
     } catch (err) {
@@ -1436,7 +1466,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  window.inspectraSelectBoard = async function(pcbId) {
+  // Click handler for SAFE boards (loads into optical inspection workbench)
+  window.inspectraSelectSafeBoard = async function(pcbId) {
     if (typeof selectInspectraBoard === 'function') {
       const session = await selectInspectraBoard(pcbId);
       if (session) {
@@ -1454,6 +1485,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   };
+
+  // Click handler for DEFECT boards: immediately navigates into the 3D Digital Twin!
+  window.inspectraOpenDefectIn3D = async function(pcbId, serialNumber) {
+    if (typeof selectInspectraBoard === 'function') {
+      try {
+        await selectInspectraBoard(pcbId);
+      } catch (e) {
+        console.warn("selectInspectraBoard before 3D navigation:", e);
+      }
+    }
+    const target = pcbId || serialNumber || 'TB010';
+    window.location.href = `/3d-view?pcb_id=${encodeURIComponent(target)}&focus=defect`;
+  };
+
+  window.inspectraSelectBoard = window.inspectraSelectSafeBoard;
 
   // --- 24. Cross-Tab Dynamic Real-Time Sync & Initialization ---
   if (typeof onInspectraSessionChange === 'function') {

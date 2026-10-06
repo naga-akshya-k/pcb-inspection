@@ -1940,33 +1940,74 @@ code {
 }
 
 .xis-result-thumb-card.pass {
-  border-color: #10b981;
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35) !important;
+}
+
+.xis-result-thumb-card.pass:hover {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.55) !important;
+  transform: translateY(-2px);
 }
 
 .xis-result-thumb-card.fail {
-  border-color: #ef4444;
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.45) !important;
 }
 
-.xis-result-thumb-card:hover {
+.xis-result-thumb-card.fail:hover {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.65) !important;
   transform: translateY(-2px);
 }
 
 .xis-result-thumb-card img {
   width: 100%;
-  height: 90px;
+  height: 94px;
   object-fit: cover;
   border-radius: 4px;
   display: block;
 }
 
-/* Red Defect Boxes Overlay on Thumbnails */
+/* Red Defect Indicator Boxes Overlay on Thumbnails */
 .xis-thumb-defect-box {
   position: absolute;
   border: 2px solid #ef4444;
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.25);
   pointer-events: none;
-  box-shadow: 0 0 6px #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulseDefectBox 1.5s infinite alternate;
 }
+
+@keyframes pulseDefectBox {
+  0% { transform: scale(0.98); opacity: 0.8; }
+  100% { transform: scale(1.05); opacity: 1.0; }
+}
+
+/* One-Click 3D Digital Twin Navigation Button on Defect Cards */
+.btn-defect-digital-twin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-defect-digital-twin:hover {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
+  transform: translateY(-1px);
+}
+
 

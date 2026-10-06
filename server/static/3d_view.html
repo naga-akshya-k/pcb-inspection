@@ -1105,6 +1105,9 @@
       // Initialize session on startup
       async function initStartupSession() {
         const targetPcbId = typeof getUrlPcbId === 'function' ? getUrlPcbId() : null;
+        const params = new URLSearchParams(window.location.search);
+        const focusDefect = params.get('focus') === 'defect';
+
         let session = null;
         if (targetPcbId && typeof getInspectraSession === 'function') {
           session = await getInspectraSession(targetPcbId);
@@ -1114,8 +1117,19 @@
         }
         if (session && (session.pcb_id || session.serial_number)) {
           syncWithSession(session);
+        } else if (targetPcbId) {
+          loadScenario(targetPcbId);
         } else {
           loadScenario('TB005');
+        }
+
+        if (focusDefect) {
+          highlightDefects = true;
+          const chk = document.getElementById('chkHighlightDefects');
+          if (chk) chk.checked = true;
+          camera.position.set(50, 65, 80);
+          controls.target.set(0, 0, 0);
+          controls.update();
         }
       }
       initStartupSession();

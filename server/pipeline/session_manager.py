@@ -123,7 +123,7 @@ class InspectionSessionManager:
 
     def _init_default_session(self):
         default_pcb_id = "PCB-001248"
-        sess = PCBInspectionSession(
+        sess1 = PCBInspectionSession(
             session_id=f"SES-{uuid.uuid4().hex[:8].upper()}",
             pcb_id=default_pcb_id,
             serial_number="TB005",
@@ -135,9 +135,79 @@ class InspectionSessionManager:
             ai_explanation="Baseline Golden Master sample: 100% nominal component placement, zero IPC violations.",
             image_url="/evaluation/test_boards/TB005.png"
         )
-        self._sessions[default_pcb_id] = sess
+        self._sessions[default_pcb_id] = sess1
         self._history_order.append(default_pcb_id)
         self._active_pcb_id = default_pcb_id
+
+        # Ingested Defect Board 1 (TB010 - Missing MCU U1)
+        sess2 = PCBInspectionSession(
+            session_id=f"SES-{uuid.uuid4().hex[:8].upper()}",
+            pcb_id="PCB-001249",
+            serial_number="TB010",
+            ai_verdict="FAIL",
+            final_verdict="FAIL",
+            health_index=0.685,
+            defective_components=1,
+            total_components=12,
+            ai_explanation="Critical Exception: Top-right MCU (U1) missing from substrate footprint.",
+            image_url="/evaluation/test_boards/TB010.png",
+            defects=[{
+                "defect_id": "DEF-U1-01",
+                "component_id": "U1",
+                "defect_type": "MISSING",
+                "severity": "CRITICAL",
+                "confidence": 0.992,
+                "evidence": "2D presence score 0.012 < 0.400 threshold; Monocular height flat (0.0mm).",
+                "recommended_action": "REWORK_OR_REPLACE",
+                "bbox_px": [760, 80, 200, 200]
+            }]
+        )
+        self._sessions[sess2.pcb_id] = sess2
+        self._history_order.append(sess2.pcb_id)
+
+        # Ingested Defect Board 2 (TB003 - Angular Controller Tilt 18°)
+        sess3 = PCBInspectionSession(
+            session_id=f"SES-{uuid.uuid4().hex[:8].upper()}",
+            pcb_id="PCB-001250",
+            serial_number="TB003",
+            ai_verdict="REWORK",
+            final_verdict="REWORK",
+            health_index=0.820,
+            defective_components=1,
+            total_components=12,
+            ai_explanation="Process Indicator: Mid-Upper Controller (U2) angular tilt (+18.2°).",
+            image_url="/evaluation/test_boards/TB003.png",
+            defects=[{
+                "defect_id": "DEF-U2-01",
+                "component_id": "U2",
+                "defect_type": "TILT",
+                "severity": "HIGH",
+                "confidence": 0.981,
+                "evidence": "Sub-pixel gradient skew indicates 18.2° rotation vs 5.0° IPC limit.",
+                "recommended_action": "REALIGN_AND_REFLOW",
+                "bbox_px": [430, 80, 180, 180]
+            }]
+        )
+        self._sessions[sess3.pcb_id] = sess3
+        self._history_order.append(sess3.pcb_id)
+
+        # Ingested Safe Board 2 (TB006 - Golden Production Board)
+        sess4 = PCBInspectionSession(
+            session_id=f"SES-{uuid.uuid4().hex[:8].upper()}",
+            pcb_id="PCB-001251",
+            serial_number="TB006",
+            ai_verdict="PASS",
+            final_verdict="PASS",
+            health_index=0.995,
+            defective_components=0,
+            total_components=12,
+            ai_explanation="Production Lot Sample: All solder joints verified within IPC Class 3 tolerances.",
+            image_url="/evaluation/test_boards/TB006.png"
+        )
+        self._sessions[sess4.pcb_id] = sess4
+        self._history_order.append(sess4.pcb_id)
+
+        self._counter = 1251
 
     def generate_pcb_id(self, serial: str = "") -> str:
         self._counter += 1

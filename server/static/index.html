@@ -19,42 +19,37 @@
   <!-- Top Enterprise Industrial Header Bar (xis.ai Theme) -->
   <header class="ind-header">
     <div class="header-left">
-      <div class="xis-brand">
-        xis<span class="brand-dot">.</span>ai
-      </div>
-      <div class="company-brand" style="margin-left: 12px; border-left: 1px solid #334155; padding-left: 14px;">
+      <div class="company-brand">
+        <div class="brand-logo" style="background: linear-gradient(135deg, #4F46E5, #06B6D4);">
+          <i class="fa-solid fa-microchip"></i>
+        </div>
         <div class="brand-meta">
-          <div class="brand-name" style="font-size: 13px;">INSPECTRA — Industrial AOI Station</div>
-          <div class="brand-sub">Industry 5.0 Human-Centric Quality & Digital Twin Platform</div>
+          <div class="brand-name">INSPECTRA — Industrial AOI Command Station</div>
+          <div class="brand-sub">Industry 5.0 Human-Centric PCB Inspection & Digital Twin Platform</div>
         </div>
       </div>
 
       <div class="standards-pills">
         <span class="pill pill-standard"><i class="fa-solid fa-certificate"></i> IPC-A-610H Class 2/3</span>
         <span class="pill pill-standard"><i class="fa-solid fa-satellite-dish"></i> IPC-CFX-2591</span>
+        <span class="pill pill-standard"><i class="fa-solid fa-shield-check"></i> ISO 9001:2015</span>
         <span class="pill pill-version"><i class="fa-solid fa-cube"></i> 3D Digital Twin</span>
       </div>
     </div>
 
-    <!-- Right Header Controls: Dev Switch & Operator Profile -->
-    <div class="xis-header-right">
-      <div class="xis-dev-pill" title="Development Environment Toggle">
-        <span>DEV</span>
-        <div class="xis-toggle-switch"></div>
+    <!-- Server Connection & Active PCB Telemetry Panel -->
+    <div class="telemetry-panel">
+      <div class="telem-item" style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 14px;">
+        <div class="telem-dot active"></div>
+        <div class="telem-info">
+          <span class="telem-label">LINE STATUS</span>
+          <span class="telem-val text-pass" id="telemServer">SMT LINE 01 ONLINE</span>
+        </div>
       </div>
-
-      <div class="xis-user-profile">
-        <div class="xis-user-avatar"><i class="fa-solid fa-user-gear"></i></div>
-        <span>Development ▾</span>
-      </div>
-
-      <div class="telemetry-panel" style="margin-left: 10px;">
-        <div class="telem-item">
-          <div class="telem-dot active"></div>
-          <div class="telem-info">
-            <span class="telem-label">ACTIVE PCB</span>
-            <span class="telem-val" style="color: #60A5FA; font-family: var(--font-mono);" id="headerPcbId">TB005 (READY)</span>
-          </div>
+      <div class="telem-item">
+        <div class="telem-info">
+          <span class="telem-label">ACTIVE PCB CONTEXT</span>
+          <span class="telem-val" style="color: #60A5FA; font-family: var(--font-mono);" id="headerPcbId">TB005 (READY)</span>
         </div>
       </div>
     </div>
@@ -228,7 +223,6 @@
             <div class="xis-conveyor-panel"></div>
             <div class="xis-conveyor-panel"></div>
           </div>
-          <div class="xis-watermark">xis<span>.</span>ai</div>
           <div class="xis-board-frame" id="conveyorBoardFrame">
             <img id="imgConveyorMain" src="/static/placeholder.png" alt="Current Board Optical Inspection">
             <div id="xisBboxBorder" class="xis-bbox-border">
@@ -419,15 +413,23 @@
            ======================================================== -->
       <aside class="cc-sidebar-right">
 
-        <!-- Results Panel (xis.ai card stack at top of right panel) -->
+        <!-- Ingested Boards Results Panel -->
         <div class="cc-card" id="boardHistoryCard" style="padding: 14px;">
           <div class="xis-results-header">
-            <span style="font-size: 15px; font-weight: 800; color: #f8fafc;"><i class="fa-solid fa-rectangle-list text-primary"></i> Results</span>
+            <span style="font-size: 14px; font-weight: 800; color: #f8fafc;"><i class="fa-solid fa-layer-group text-primary"></i> Ingested Boards</span>
             <span class="cc-badge tag-pass" id="boardHistoryCountTag">0 Boards</span>
+          </div>
+          <div style="font-size: 11px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #1e293b;">
+            <span style="display: inline-flex; align-items: center; gap: 4px; color: #34d399; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 6px #10b981;"></span> Safe (Pass)
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; color: #f87171; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block; box-shadow: 0 0 6px #ef4444;"></span> Defect (Opens in 3D)
+            </span>
           </div>
           <div class="xis-results-stack" id="boardHistoryList">
             <div style="font-size: 12px; color: #64748B; text-align: center; padding: 20px;">
-              No prior boards in memory. Complete an inspection to record results.
+              Loading ingested boards...
             </div>
           </div>
         </div>
